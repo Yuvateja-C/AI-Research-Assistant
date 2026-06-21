@@ -22,7 +22,11 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://ai-research-assistant-lovat.vercel.app"],
+    allow_origins=[
+        "https://ai-research-assistant-lovat.vercel.app",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -48,6 +52,7 @@ class QuestionRequest(BaseModel):
     question: str
     history: list = []
 
+# UPDATED: Added SummaryRequest to safely receive the filename
 class SummaryRequest(BaseModel):
     filename: str
 
@@ -163,16 +168,17 @@ Document Context:
 # Summary Endpoint
 # ----------------------------
 
+# UPDATED: Now receives the exact filename to prevent database errors
 @app.post("/summary")
 async def generate_document_summary(data: SummaryRequest):
-    # Query ChromaDB specifically for this document using the filename
+    # Filter ChromaDB specifically for chunks belonging to this file
     results = collection.query(
         query_texts=["document summary main topics events conclusion"],
         n_results=10,
         where={"source": data.filename}
     )
 
-    # Check if we got any results back
+    # Safety check if no chunks were found
     if not results or not results["documents"] or len(results["documents"][0]) == 0:
         return {"summary": "Error: No indexed data found for this document."}
 
