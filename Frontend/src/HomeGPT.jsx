@@ -2,158 +2,99 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import jsPDF from "jspdf";
 
 /**
- * Enterprise AI Research Assistant — Executive Workspace
+ * PRODUCTION-GRADE RESEARCH AI WORKSPACE (CLAUDE-MAX ARCHITECTURE)
  */
 
 const API_URL = import.meta.env.VITE_API_URL;
-const MAX_FILE_MB = 10000000;
-
-// Premium Minimalist Light Theme Palette
-const theme = {
-  bgApp: "#F7F7F8",
-  bgSidebar: "#FFFFFF",
-  bgCanvas: "#FFFFFF",
-  border: "#E5E5E5",
-  textMain: "#171717",
-  textMuted: "#737373",
-  accent: "#000000",
-  accentHover: "#262626",
-  userBubble: "#F4F4F5",
-  botBubble: "#FFFFFF",
-  errorBg: "#FEF2F2",
-  errorText: "#991B1B",
-  errorBorder: "#FCA5A5",
-};
-
-const SUGGESTED_QUESTIONS = [
-  "Generate an executive summary",
-  "Extract the key metrics",
-  "Identify the main characters",
-  "What are the core arguments?",
-];
+const MAX_FILE_MB = 10;
 
 function uid() {
   return `msg_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 }
 
-// --- Ultra-Clean SVG Icons ---
-const IconBot = ({ size = 18, className = "" }) => (
-  <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <rect x="3" y="11" width="18" height="10" rx="2" />
-    <circle cx="12" cy="5" r="2" />
-    <path d="M12 7v4" />
-    <line x1="8" y1="16" x2="8" y2="16.01" />
-    <line x1="16" y1="16" x2="16" y2="16.01" />
+// --- High-Fidelity Minimalist SVGs ---
+const IconSparkles = ({ size = 16, className = "" }) => (
+  <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-12.728l.707.707m11.314 11.314l.707-.707M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10z" />
   </svg>
 );
 
-const IconUser = ({ size = 18, className = "" }) => (
-  <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-    <circle cx="12" cy="7" r="4" />
+const IconPaperclip = ({ size = 20, className = "" }) => (
+  <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
   </svg>
 );
 
-const IconUpload = ({ size = 20, className = "" }) => (
-  <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-    <polyline points="17 8 12 3 7 8" />
-    <line x1="12" y1="3" x2="12" y2="15" />
+const IconArrowUp = ({ size = 18, className = "" }) => (
+  <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <line x1="12" y1="19" x2="12" y2="5" />
+    <polyline points="5 12 12 5 19 12" />
   </svg>
 );
 
-const IconSend = ({ size = 16, className = "" }) => (
-  <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <line x1="22" y1="2" x2="11" y2="13" />
-    <polygon points="22 2 15 22 11 13 2 9 22 2" />
+const IconFileText = ({ size = 16, className = "" }) => (
+  <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+    <polyline points="14 2 14 8 20 8" />
+    <line x1="16" y1="13" x2="8" y2="13" />
+    <line x1="16" y1="17" x2="8" y2="17" />
   </svg>
 );
 
-const IconClose = ({ size = 16, className = "" }) => (
-  <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+const IconClose = ({ size = 14, className = "" }) => (
+  <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <line x1="18" y1="6" x2="6" y2="18" />
     <line x1="6" y1="6" x2="18" y2="18" />
   </svg>
 );
 
-const IconMenu = ({ size = 20, className = "" }) => (
+const IconCompass = ({ size = 18, className = "" }) => (
   <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <line x1="3" y1="12" x2="21" y2="12" />
-    <line x1="3" y1="6" x2="21" y2="6" />
-    <line x1="3" y1="18" x2="21" y2="18" />
-  </svg>
-);
-
-const IconFile = ({ size = 16, className = "" }) => (
-  <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-    <polyline points="14 2 14 8 20 8" />
-    <line x1="16" y1="13" x2="8" y2="13" />
-    <line x1="16" y1="17" x2="8" y2="17" />
-    <polyline points="10 9 9 9 8 9" />
+    <circle cx="12" cy="12" r="10" />
+    <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
   </svg>
 );
 
 const TypingIndicator = () => (
-  <div className="flex items-center gap-1.5 px-2 py-1">
+  <div className="flex items-center gap-1 py-3">
     <div className="w-1.5 h-1.5 bg-neutral-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
     <div className="w-1.5 h-1.5 bg-neutral-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
     <div className="w-1.5 h-1.5 bg-neutral-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
   </div>
 );
 
-const ErrorBanner = ({ message, onDismiss }) => {
-  if (!message) return null;
-  return (
-    <div className="flex items-start gap-3 text-sm rounded-lg px-4 py-3 border shadow-sm animate-in fade-in slide-in-from-top-2" style={{ backgroundColor: theme.errorBg, borderColor: theme.errorBorder, color: theme.errorText }} role="alert">
-      <span className="flex-1 font-medium leading-relaxed">{message}</span>
-      <button onClick={onDismiss} aria-label="Dismiss error" className="shrink-0 p-1 hover:opacity-70 transition-opacity">
-        <IconClose size={14} />
-      </button>
-    </div>
-  );
-};
-
 export default function HomeGPT() {
-  const [file, setFile] = useState(null);
   const [fileInfo, setFileInfo] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState(null);
-  const [isDragging, setIsDragging] = useState(false);
-
-  const [summary, setSummary] = useState("");
-  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
 
   const [question, setQuestion] = useState("");
   const [isAsking, setIsAsking] = useState(false);
   const [askError, setAskError] = useState(null);
+  
   const [messages, setMessages] = useState([
     {
       id: uid(),
       role: "assistant",
-      content: "Welcome to the workspace. Please upload a PDF document to begin the analysis.",
+      content: "Hello. I am ready to assist with your document processing and analysis. Attach a source PDF below to initialize the workspace context.",
     },
   ]);
-  
-  const [questionsAsked, setQuestionsAsked] = useState(0);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const fileInputRef = useRef(null);
   const inputRef = useRef(null);
   const messagesEndRef = useRef(null);
   const uploadAbortRef = useRef(null);
   const askAbortRef = useRef(null);
-  const summaryAbortRef = useRef(null);
 
+  // Smooth pinning to viewport bottom when text streams
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [messages, isAsking, summary]);
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, isAsking]);
 
   useEffect(() => {
     return () => {
       uploadAbortRef.current?.abort();
       askAbortRef.current?.abort();
-      summaryAbortRef.current?.abort();
     };
   }, []);
 
@@ -161,7 +102,7 @@ export default function HomeGPT() {
     const textarea = inputRef.current;
     if (textarea) {
       textarea.style.height = "auto";
-      textarea.style.height = `${Math.min(textarea.scrollHeight, 150)}px`;
+      textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`;
     }
   }, []);
 
@@ -169,64 +110,49 @@ export default function HomeGPT() {
     adjustTextareaHeight();
   }, [question, adjustTextareaHeight]);
 
-  const validateFile = (f) => {
-    if (!f) return "Please select a valid file.";
-    const looksLikePdf = f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf");
-    if (!looksLikePdf) return "Invalid format. Only PDF documents are supported.";
-    if (f.size > MAX_FILE_MB * 1024 * 1024) return `File exceeds the ${MAX_FILE_MB}MB limit.`;
-    return null;
-  };
+  const handleUpload = async (e) => {
+    const selectedFile = e.target.files?.[0];
+    if (!selectedFile) return;
 
-  const handleFileSelect = (selected) => {
-    const err = validateFile(selected);
-    if (err) {
-      setUploadError(err);
+    if (selectedFile.type !== "application/pdf" && !selectedFile.name.toLowerCase().endsWith(".pdf")) {
+      setUploadError("Unsupported format. Please upload a valid PDF document.");
       return;
     }
+    if (selectedFile.size > MAX_FILE_MB * 1024 * 1024) {
+      setUploadError(`File constraints broken. Maximum allowed size is ${MAX_FILE_MB}MB.`);
+      return;
+    }
+
     setUploadError(null);
-    setFile(selected);
-  };
-
-  const handleDragOver = (e) => { e.preventDefault(); if (!isDragging) setIsDragging(true); };
-  const handleDragLeave = () => setIsDragging(false);
-  const handleDrop = (e) => {
-    e.preventDefault();
-    setIsDragging(false);
-    const dropped = e.dataTransfer.files?.[0];
-    if (dropped) handleFileSelect(dropped);
-  };
-
-  const handleUpload = async () => {
-    const err = validateFile(file);
-    if (err) return setUploadError(err);
-    if (isUploading) return;
+    setIsUploading(true);
 
     const formData = new FormData();
-    formData.append("file", file);
+    formData.append("file", selectedFile);
 
     const controller = new AbortController();
     uploadAbortRef.current = controller;
 
-    setIsUploading(true);
-    setUploadError(null);
-
     try {
-      const res = await fetch(`${API_URL}/upload`, { method: "POST", body: formData, signal: controller.signal });
-      if (!res.ok) {
-        const body = await res.json().catch(() => null);
-        throw new Error(body?.detail || `Server synchronization failed (${res.status}).`);
-      }
+      const res = await fetch(`${API_URL}/upload`, { 
+        method: "POST", 
+        body: formData, 
+        signal: controller.signal 
+      });
+      if (!res.ok) throw new Error("Synchronization failure. Verify that your backend server is active.");
+      
       const data = await res.json();
-      setFileInfo({ filename: data.filename, chunks: data.total_chunks, status: "Indexed" });
-      setMessages((prev) => [...prev, { id: uid(), role: "assistant", content: `Document "${data.filename}" has been securely indexed. You may now begin your queries.` }]);
-      setFile(null);
-      if (fileInputRef.current) fileInputRef.current.value = "";
+      setFileInfo({ filename: data.filename, chunks: data.total_chunks });
+      setMessages((prev) => [
+        ...prev, 
+        { id: uid(), role: "assistant", content: `Context established successfully. I have processed and vectorized "${data.filename}" into ${data.total_chunks} structured semantic segments.` }
+      ]);
     } catch (error) {
       if (error.name === "AbortError") return;
-      setUploadError(error.message || "Upload failed. Please verify your server connection.");
+      setUploadError(error.message || "An unhandled error occurred during file ingestion.");
     } finally {
       setIsUploading(false);
       uploadAbortRef.current = null;
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
@@ -234,16 +160,11 @@ export default function HomeGPT() {
     const trimmed = question.trim();
     if (!trimmed || isAsking) return;
 
-    const chatHistory = messages.map((msg) => ({
-      role: msg.role,
-      content: msg.content,
-    }));
+    const chatHistory = messages.map((msg) => ({ role: msg.role, content: msg.content }));
 
     setMessages((prev) => [...prev, { id: uid(), role: "user", content: trimmed }]);
-    setQuestionsAsked((prev) => prev + 1);
     setQuestion("");
     setAskError(null);
-
     if (inputRef.current) inputRef.current.style.height = "auto";
 
     const controller = new AbortController();
@@ -257,17 +178,16 @@ export default function HomeGPT() {
         body: JSON.stringify({ question: trimmed, history: chatHistory }),
         signal: controller.signal,
       });
-      if (!res.ok) {
-        const body = await res.json().catch(() => null);
-        throw new Error(body?.detail || `Analysis failed (${res.status}).`);
-      }
+      if (!res.ok) throw new Error("Execution fault. Check terminal logs or pipeline gateway connectivity.");
+      
       const data = await res.json();
-      setMessages((prev) => [...prev, { id: uid(), role: "assistant", content: data.answer || "No insights were returned.", sources: data.sources || [] }]);
+      setMessages((prev) => [
+        ...prev, 
+        { id: uid(), role: "assistant", content: data.answer || "No relevant data fragments extracted.", sources: data.sources || [] }
+      ]);
     } catch (error) {
       if (error.name === "AbortError") return;
-      const message = error.message || "Failed to process query. Check server status.";
-      setAskError(message);
-      setMessages((prev) => [...prev, { id: uid(), role: "assistant", content: message, isError: true }]);
+      setAskError(error.message);
     } finally {
       setIsAsking(false);
       askAbortRef.current = null;
@@ -276,45 +196,43 @@ export default function HomeGPT() {
   };
 
   const handleSummary = async () => {
-    // Ensures the filename is present before calling the backend
-    if (isGeneratingSummary || !fileInfo || !fileInfo.filename) return;
+    if (!fileInfo || !fileInfo.filename || isAsking) return;
     
-    const controller = new AbortController();
-    summaryAbortRef.current = controller;
-    setIsGeneratingSummary(true);
     setAskError(null);
+    setIsAsking(true);
+    setMessages((prev) => [...prev, { id: uid(), role: "user", content: "Synthesize a comprehensive executive summary from the uploaded source architecture." }]);
 
     try {
       const res = await fetch(`${API_URL}/summary`, { 
         method: "POST", 
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ filename: fileInfo.filename }),
-        signal: controller.signal 
+        body: JSON.stringify({ filename: fileInfo.filename })
       });
-      if (!res.ok) {
-        const body = await res.json().catch(() => null);
-        throw new Error(body?.detail || `Failed to compile document summary.`);
-      }
+      if (!res.ok) throw new Error("Compilation failure during summary construction.");
+      
       const data = await res.json();
-      setSummary(data.summary || "Summary generation returned empty.");
+      setMessages((prev) => [...prev, { id: uid(), role: "assistant", content: data.summary, isSummary: true }]);
     } catch (error) {
-      if (error.name === "AbortError") return;
-      setAskError(error.message || "Failed to generate summary.");
+      setAskError(error.message);
     } finally {
-      setIsGeneratingSummary(false);
-      summaryAbortRef.current = null;
+      setIsAsking(false);
     }
   };
 
-  const exportSummaryPDF = () => {
-    if (!summary) return;
+  const exportSummaryPDF = (summaryText) => {
     const doc = new jsPDF();
-    doc.setFontSize(16);
-    doc.text("Executive Summary Report", 20, 20);
+    doc.setFont("Helvetica", "bold");
+    doc.setFontSize(18);
+    doc.text("EXECUTIVE ANALYSIS REPORT", 20, 25);
+    
+    doc.setLineWidth(0.5);
+    doc.line(20, 30, 190, 30);
+    
+    doc.setFont("Helvetica", "normal");
     doc.setFontSize(11);
-    const lines = doc.splitTextToSize(summary, 170);
-    doc.text(lines, 20, 35);
-    doc.save("Executive_Summary.pdf");
+    const lines = doc.splitTextToSize(summaryText, 170);
+    doc.text(lines, 20, 42);
+    doc.save(`Analysis_Report_${Date.now().toString().slice(-6)}.pdf`);
   };
 
   const handleInputKeyDown = (e) => {
@@ -324,315 +242,199 @@ export default function HomeGPT() {
     }
   };
 
-  const handleNewSession = () => {
-    uploadAbortRef.current?.abort();
-    askAbortRef.current?.abort();
-    summaryAbortRef.current?.abort();
-    setMessages([{ id: uid(), role: "assistant", content: "Welcome to the workspace. Please upload a PDF document to begin the analysis." }]);
+  const clearWorkspace = () => {
+    setMessages([{ id: uid(), role: "assistant", content: "Workspace cleared. System initialized for new operations." }]);
     setFileInfo(null);
-    setFile(null);
-    setSummary("");
-    setUploadError(null);
     setAskError(null);
+    setUploadError(null);
     setQuestion("");
-    setQuestionsAsked(0);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-    setSidebarOpen(false);
   };
 
   return (
-    <div className="flex h-screen w-full overflow-hidden antialiased selection:bg-neutral-200" style={{ backgroundColor: theme.bgApp, color: theme.textMain, fontFamily: "'Inter', system-ui, sans-serif" }}>
+    <div className="flex h-screen w-full bg-[#FCFBFA] text-[#191919] font-sans antialiased selection:bg-[#EADECE]/60 overflow-hidden relative">
       
-      {/* Mobile Sidebar Backdrop */}
-      {sidebarOpen && (
-        <div className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm lg:hidden transition-opacity" onClick={() => setSidebarOpen(false)} />
-      )}
-
-      {/* Sidebar Panel */}
-      <aside
-        className={`fixed lg:relative z-50 w-[320px] h-full flex flex-col transition-transform duration-300 ease-in-out border-r shadow-[4px_0_24px_rgba(0,0,0,0.02)] ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        } lg:translate-x-0 overflow-y-auto`}
-        style={{ backgroundColor: theme.bgSidebar, borderColor: theme.border }}
-      >
-        <div className="p-6 flex flex-col h-full">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h1 className="text-xl font-bold tracking-tight">Research UI</h1>
-              <p className="text-xs font-medium tracking-widest uppercase mt-1" style={{ color: theme.textMuted }}>Executive Hub</p>
-            </div>
-            <button className="lg:hidden p-2 rounded-md hover:bg-neutral-100 transition-colors" onClick={() => setSidebarOpen(false)}>
-              <IconClose size={20} />
-            </button>
-          </div>
-
-          <button
-            onClick={handleNewSession}
-            className="w-full text-sm font-semibold py-2.5 px-4 rounded-lg border shadow-sm hover:shadow transition-all active:scale-[0.98] flex items-center justify-center gap-2"
-            style={{ borderColor: theme.border, backgroundColor: theme.bgCanvas }}
-          >
-            <span className="text-lg leading-none mb-0.5">+</span> New Workspace
-          </button>
-
-          {/* Upload Section */}
-          <div className="mt-8 flex-1 flex flex-col">
-            <p className="text-xs font-semibold tracking-wider uppercase mb-3" style={{ color: theme.textMuted }}>Data Source</p>
-
-            <div
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              className={`relative rounded-xl p-5 border-2 border-dashed transition-all duration-200 ${
-                isDragging ? "border-black bg-neutral-50 scale-[1.02]" : "border-neutral-200 bg-neutral-50/50 hover:bg-neutral-50 hover:border-neutral-300"
-              }`}
-            >
-              {fileInfo ? (
-                <div className="animate-in fade-in zoom-in-95 duration-300">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="w-[75%]">
-                      <p className="text-[11px] font-medium mb-1 uppercase tracking-wider" style={{ color: theme.textMuted }}>Active File</p>
-                      <p className="text-sm font-semibold truncate" title={fileInfo.filename}>{fileInfo.filename}</p>
-                    </div>
-                    <div className="bg-emerald-100 text-emerald-700 border border-emerald-200 text-[10px] uppercase font-bold px-2 py-1 rounded flex items-center gap-1.5 shrink-0">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Ready
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-3 pt-4 border-t border-neutral-200">
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="font-medium" style={{ color: theme.textMuted }}>Document Nodes</span>
-                      <span className="font-mono bg-white border border-neutral-200 px-2 py-0.5 rounded shadow-sm">{fileInfo.chunks}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="font-medium" style={{ color: theme.textMuted }}>Queries Run</span>
-                      <span className="font-mono bg-white border border-neutral-200 px-2 py-0.5 rounded shadow-sm">{questionsAsked}</span>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-4">
-                  <div className="w-12 h-12 rounded-full bg-white shadow-sm flex items-center justify-center mx-auto mb-3 border border-neutral-100 text-neutral-600">
-                    <IconUpload size={20} />
-                  </div>
-                  <p className="text-sm font-semibold mb-1">Upload Document</p>
-                  <p className="text-xs mb-4" style={{ color: theme.textMuted }}>Drag & drop your PDF here</p>
-
-                  <input ref={fileInputRef} type="file" accept="application/pdf,.pdf" className="hidden" id="hra-file" onChange={(e) => handleFileSelect(e.target.files?.[0])} />
-                  <label htmlFor="hra-file" className="inline-block text-xs font-semibold px-4 py-2 rounded-md bg-white border border-neutral-200 shadow-sm hover:bg-neutral-50 cursor-pointer transition-colors">
-                    Browse Files
-                  </label>
-
-                  {file && (
-                    <div className="mt-5 flex items-center justify-between gap-3 bg-white rounded-md p-2.5 border shadow-sm animate-in fade-in">
-                      <IconFile size={14} className="text-neutral-400 shrink-0" />
-                      <span className="text-xs truncate font-medium flex-1 text-left">{file.name}</span>
-                      <button onClick={() => setFile(null)} className="p-1 hover:bg-neutral-100 rounded text-neutral-400 hover:text-black transition-colors" aria-label="Remove">
-                        <IconClose size={14}/>
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {file && !fileInfo && (
-              <div className="mt-4 animate-in slide-in-from-top-2">
-                <button
-                  onClick={handleUpload}
-                  disabled={isUploading}
-                  className="w-full text-sm font-bold py-3 rounded-lg flex justify-center items-center gap-2 shadow-md transition-transform active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100 text-white"
-                  style={{ backgroundColor: theme.accent }}
-                >
-                  {isUploading ? (
-                    <><span className="inline-block w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"/> Processing...</>
-                  ) : "Index Document"}
-                </button>
-              </div>
-            )}
-
-            <div className="mt-4">
-              <ErrorBanner message={uploadError} onDismiss={() => setUploadError(null)} />
-            </div>
+      {/* Structural Minimalist Sidebar (Left Hand Context) */}
+      <aside className="hidden md:flex flex-col w-[260px] h-full bg-[#F3F2EE] border-r border-[#E5E4E0] px-4 py-6 justify-between shrink-0">
+        <div className="space-y-6">
+          <div className="flex items-center gap-2.5 px-2">
+            <div className="w-5 h-5 rounded bg-[#191919] flex items-center justify-center text-[#FCFBFA] text-xs font-bold tracking-tighter">Ω</div>
+            <span className="text-sm font-semibold tracking-tight text-[#191919]">Workspace Control</span>
           </div>
           
-          <div className="mt-auto pt-6 text-center border-t" style={{ borderColor: theme.border }}>
-            <p className="text-[10px] uppercase tracking-widest font-semibold flex items-center justify-center gap-2" style={{ color: theme.textMuted }}>
-              Secured Connection
-            </p>
-          </div>
+          <button 
+            onClick={clearWorkspace} 
+            className="w-full text-left px-3 py-2 text-xs font-medium text-[#66645E] hover:text-black hover:bg-[#EAE9E4] rounded-lg transition-all"
+          >
+            + Reset Active Instance
+          </button>
+        </div>
+
+        <div className="px-2 pt-4 border-t border-[#E5E4E0] text-[11px] font-mono text-[#8C8A82]">
+          Network: <span className="text-emerald-700 font-bold">Connected</span>
         </div>
       </aside>
 
-      {/* Main Workspace Area */}
-      <div className="flex-1 flex flex-col min-w-0 relative bg-white">
+      {/* Main Operational Container */}
+      <div className="flex-1 flex flex-col h-full min-w-0 bg-[#FCFBFA] relative">
         
-        {/* Top Navigation Bar */}
-        <header className="absolute top-0 w-full z-20 px-6 py-4 flex items-center justify-between bg-white/80 backdrop-blur-md border-b" style={{ borderColor: theme.border }}>
-          <div className="flex items-center gap-3">
-            <button className="lg:hidden p-2 -ml-2 rounded-md hover:bg-neutral-100 transition-colors" onClick={() => setSidebarOpen(true)}>
-              <IconMenu size={20} />
-            </button>
-            <h2 className="text-sm font-bold tracking-tight">Analysis Canvas</h2>
+        {/* Subtle Top Status Bar */}
+        <header className="w-full h-14 border-b border-[#E5E4E0]/60 flex items-center justify-between px-6 bg-[#FCFBFA]/80 backdrop-blur-md z-10 shrink-0">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold uppercase tracking-widest text-[#8C8A82]">Current Notebook</span>
+            {fileInfo && (
+              <span className="text-xs bg-[#EADECE]/40 px-2 py-0.5 rounded text-[#5C5146] font-medium max-w-[150px] truncate">
+                {fileInfo.filename}
+              </span>
+            )}
           </div>
-          
-          <button
-            onClick={handleSummary}
-            disabled={!fileInfo || isGeneratingSummary}
-            className="px-4 py-2 rounded-md text-xs font-bold transition-all flex items-center gap-2 disabled:opacity-40 border shadow-sm hover:shadow hover:bg-neutral-50 disabled:hover:bg-white disabled:hover:shadow-sm"
-            style={{ borderColor: theme.border }}
-          >
-            {isGeneratingSummary ? (
-              <span className="inline-block w-3.5 h-3.5 border-2 border-black/20 border-t-black rounded-full animate-spin" />
-            ) : "Extract Summary"}
+          <button onClick={clearWorkspace} className="md:hidden text-xs font-medium text-[#8C8A82] hover:text-black transition-colors">
+            Reset
           </button>
         </header>
 
-        {/* Chat Conversation Scroll Area */}
-        <div className="flex-1 overflow-y-auto px-4 sm:px-8 pt-24 pb-48 scroll-smooth">
-          <div className="max-w-3xl mx-auto flex flex-col gap-8">
+        {/* Beautiful Scrollable Content Canvas */}
+        <div className="flex-1 overflow-y-auto scrollbar-none px-4 md:px-8 pt-6 pb-44">
+          <div className="max-w-2xl mx-auto flex flex-col gap-10">
             
             {messages.map((msg) => (
-              <div key={msg.id} className={`flex gap-4 animate-in fade-in slide-in-from-bottom-2 duration-300 ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
-                
-                {/* Avatar */}
-                <div
-                  className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center shadow-sm border"
-                  style={{
-                    backgroundColor: msg.role === "user" ? theme.accent : theme.botBubble,
-                    borderColor: msg.role === "user" ? theme.accent : theme.border,
-                    color: msg.role === "user" ? "#FFFFFF" : theme.textMain,
-                  }}
-                >
-                  {msg.role === "user" ? <IconUser size={16} /> : <IconBot size={16} />}
+              <div key={msg.id} className="flex gap-6 animate-in fade-in duration-300">
+                {/* Minimalist Column Indicator */}
+                <div className="shrink-0 pt-0.5">
+                  {msg.role === "user" ? (
+                    <div className="w-6 h-6 rounded-full bg-[#EADECE] text-[#5C5146] flex items-center justify-center text-[10px] font-bold">U</div>
+                  ) : (
+                    <div className="w-6 h-6 rounded-full bg-[#191919] text-[#FCFBFA] flex items-center justify-center text-[10px] font-mono">AI</div>
+                  )}
                 </div>
                 
-                {/* Message Bubble */}
-                <div
-                  className={`max-w-[85%] sm:max-w-[75%] px-5 py-3.5 text-[15px] leading-relaxed whitespace-pre-wrap shadow-sm border ${
-                    msg.role === "user" ? "rounded-2xl rounded-tr-sm" : "rounded-2xl rounded-tl-sm"
-                  }`}
-                  style={{
-                    backgroundColor: msg.role === "user" ? theme.userBubble : theme.botBubble,
-                    borderColor: msg.isError ? theme.errorBorder : theme.border,
-                    color: msg.role === "user" ? theme.textMain : theme.textMain,
-                  }}
-                >
-                  <div className={msg.role === "user" ? "font-medium" : ""}>{msg.content}</div>
+                {/* Streamlined Document-style Copy Block */}
+                <div className="flex-1 min-w-0">
+                  <div className="text-[15px] leading-relaxed text-[#191919] font-normal tracking-wide whitespace-pre-wrap">
+                    {msg.content}
+                  </div>
 
-                  {/* Sources Tag */}
+                  {/* Grounded Source Readout */}
                   {msg.sources && msg.sources.length > 0 && (
-                    <div className="mt-3 pt-3 border-t flex flex-wrap gap-2" style={{ borderColor: theme.border }}>
-                      <span className="text-[10px] font-bold tracking-widest uppercase mt-0.5" style={{ color: theme.textMuted }}>Sources:</span>
-                      {msg.sources.map((source, idx) => {
-                        const chunkId = source.split("_chunk_")[1] || source;
-                        return (
-                          <span key={idx} className="bg-neutral-100 border border-neutral-200 px-1.5 py-0.5 rounded text-[10px] font-mono text-neutral-600">
-                            Node {chunkId}
-                          </span>
-                        );
-                      })}
+                    <div className="mt-4 flex flex-wrap items-center gap-1.5 border-t border-[#E5E4E0]/40 pt-3">
+                      <span className="text-[10px] font-semibold text-[#8C8A82] uppercase tracking-wider mr-1">Context Anchors:</span>
+                      {msg.sources.map((source, idx) => (
+                        <span key={idx} className="bg-[#F3F2EE] border border-[#E5E4E0] px-1.5 py-0.5 rounded font-mono text-[10px] text-[#66645E]">
+                          Segment {source.split("_chunk_")[1] || source}
+                        </span>
+                      ))}
                     </div>
+                  )}
+
+                  {/* Clean PDF Download Trigger */}
+                  {msg.isSummary && (
+                    <button 
+                      onClick={() => exportSummaryPDF(msg.content)}
+                      className="mt-4 inline-flex items-center gap-2 px-3 py-1.5 bg-[#191919] hover:bg-[#33322E] text-[#FCFBFA] text-xs font-semibold rounded-lg shadow-sm transition-colors"
+                    >
+                      <IconFileText size={12} /> Compile PDF Report
+                    </button>
                   )}
                 </div>
               </div>
             ))}
 
-            {/* Typing Indicator */}
+            {/* Dynamic Loading Matrix */}
             {isAsking && (
-              <div className="flex gap-4 animate-in fade-in">
-                <div className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center shadow-sm border" style={{ backgroundColor: theme.botBubble, borderColor: theme.border }}>
-                  <IconBot size={16} />
+              <div className="flex gap-6 animate-in fade-in">
+                <div className="shrink-0 pt-0.5">
+                  <div className="w-6 h-6 rounded-full bg-[#191919] text-[#FCFBFA] flex items-center justify-center text-[10px] font-mono animate-pulse">AI</div>
                 </div>
-                <div className="px-5 py-4 rounded-2xl rounded-tl-sm border shadow-sm flex items-center" style={{ backgroundColor: theme.botBubble, borderColor: theme.border }}>
+                <div className="flex-1">
                   <TypingIndicator />
                 </div>
               </div>
             )}
 
-            {/* Suggested Questions (Empty State) */}
-            {!fileInfo && messages.length <= 1 && (
-              <div className="mt-6 pt-6 border-t animate-in fade-in delay-150 duration-500" style={{ borderColor: theme.border }}>
-                <p className="text-xs font-bold uppercase tracking-widest mb-4" style={{ color: theme.textMuted }}>Suggested Actions</p>
-                <div className="flex flex-wrap gap-2">
-                  {SUGGESTED_QUESTIONS.map((q) => (
-                    <button
-                      key={q}
-                      onClick={() => { setQuestion(q); inputRef.current?.focus(); }}
-                      className="text-sm px-4 py-2 rounded-full border bg-white shadow-sm hover:shadow hover:border-neutral-300 transition-all text-neutral-600 hover:text-black active:scale-[0.98]"
-                      style={{ borderColor: theme.border }}
-                    >
-                      {q}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Summary Report Card */}
-            {summary && (
-              <div className="mt-4 p-6 pt-8 rounded-2xl border shadow-lg bg-white relative overflow-hidden animate-in slide-in-from-bottom-4 duration-500" style={{ borderColor: theme.border }}>
-                <div className="absolute top-0 left-0 w-full h-1 bg-black"></div>
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-                  <h3 className="text-lg font-bold flex items-center gap-2">
-                    Executive Summary
-                  </h3>
-                  <button
-                    onClick={exportSummaryPDF}
-                    className="px-3 py-1.5 rounded-md text-xs font-bold flex items-center justify-center gap-1.5 border shadow-sm hover:bg-neutral-50 transition-colors"
-                    style={{ borderColor: theme.border }}
-                  >
-                    ⬇ Download PDF
-                  </button>
-                </div>
-                <div className="whitespace-pre-wrap text-[15px] leading-relaxed text-neutral-800">
-                  {summary}
-                </div>
-              </div>
-            )}
-
-            <div ref={messagesEndRef} className="h-4" />
+            <div ref={messagesEndRef} className="h-2" />
           </div>
         </div>
 
-        {/* Floating Input Controller */}
-        <div className="absolute bottom-0 w-full p-4 sm:p-6 bg-gradient-to-t from-white via-white/90 to-transparent pointer-events-none z-30">
-          <div className="max-w-3xl mx-auto pointer-events-auto">
+        {/* Absolute Base-Anchored Control Dock (Zero-Scroll Form Factor) */}
+        <footer className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-[#FCFBFA] via-[#FCFBFA] to-transparent pt-8 pb-6 px-4 z-20 pointer-events-none">
+          <div className="max-w-2xl mx-auto pointer-events-auto">
             
-            <div className="mb-3">
-              <ErrorBanner message={askError} onDismiss={() => setAskError(null)} />
-            </div>
-            
-            <div className="flex items-end gap-2 rounded-2xl p-2 shadow-[0_8px_30px_rgb(0,0,0,0.08)] border bg-white focus-within:border-black focus-within:ring-4 focus-within:ring-black/5 transition-all" style={{ borderColor: theme.border }}>
+            {/* Integrated Error Handling Notification Panel */}
+            {(askError || uploadError) && (
+              <div className="mb-4 px-4 py-3 bg-[#FFF5F5] border border-[#FCA5A5] text-[#991B1B] rounded-xl text-xs font-medium flex justify-between items-center shadow-sm animate-in slide-in-from-bottom-2">
+                <span>{askError || uploadError}</span>
+                <button onClick={() => { setAskError(null); setUploadError(null); }} className="hover:opacity-60 transition-opacity p-1">
+                  <IconClose size={14}/>
+                </button>
+              </div>
+            )}
+
+            {/* Active Attachment Capsule Layer */}
+            {(fileInfo || isUploading) && (
+              <div className="mb-3.5 flex items-center gap-2 animate-in fade-in slide-in-from-bottom-1">
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#F3F2EE] border border-[#E5E4E0] rounded-xl shadow-sm text-xs font-medium text-[#5C5146]">
+                  {isUploading ? (
+                    <span className="w-3 h-3 border-2 border-[#8C8A82] border-t-black rounded-full animate-spin" />
+                  ) : (
+                    <IconFileText size={13} className="text-[#8C8A82]" />
+                  )}
+                  <span className="truncate max-w-[180px] font-mono">{fileInfo?.filename || "Analyzing Data System..."}</span>
+                </div>
+
+                {/* Instant Executive Summary Action */}
+                {fileInfo && !isAsking && (
+                  <button 
+                    onClick={handleSummary}
+                    className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider px-3 py-1.5 bg-white border border-[#E5E4E0] text-[#66645E] hover:text-black hover:border-neutral-400 rounded-xl shadow-sm transition-all"
+                  >
+                    <IconSparkles size={11} /> Extract Summary
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Premium Console Ingestion Architecture */}
+            <div className="relative flex items-end gap-2 bg-[#F3F2EE] rounded-2xl p-2.5 transition-all border border-[#E5E4E0] focus-within:border-neutral-400 focus-within:bg-white shadow-sm focus-within:shadow-md">
+              
+              <input ref={fileInputRef} type="file" accept="application/pdf,.pdf" className="hidden" onChange={handleUpload} />
+              
+              {/* Paperclip Action */}
+              <button 
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading || isAsking}
+                className="shrink-0 w-9 h-9 flex items-center justify-center text-[#8C8A82] hover:text-black disabled:opacity-40 transition-colors mb-0.5 rounded-xl hover:bg-[#EAE9E4]"
+                title="Inject PDF Document"
+              >
+                <IconPaperclip size={18} />
+              </button>
+
+              {/* Seamless Dynamic Sizing Input Canvas */}
               <textarea
                 ref={inputRef}
                 value={question}
                 onChange={(e) => setQuestion(e.target.value)}
                 onKeyDown={handleInputKeyDown}
-                placeholder={fileInfo ? "Ask a question about the document..." : "Upload a file to begin..."}
+                placeholder={fileInfo ? "Inquire about document parameters..." : "Ask a question or initialize a dataset..."}
                 disabled={isAsking}
                 rows={1}
-                className="flex-1 bg-transparent outline-none text-[15px] px-3 py-2.5 resize-none text-black placeholder-neutral-400 disabled:opacity-50 font-medium scroll-smooth leading-relaxed"
+                className="flex-1 bg-transparent border-none outline-none text-[15px] px-1 py-2.5 resize-none text-[#191919] placeholder-[#8C8A82] disabled:opacity-50 min-h-[40px] max-h-[180px] overflow-y-auto leading-relaxed"
               />
+              
+              {/* Submission Node */}
               <button
                 onClick={handleAsk}
-                disabled={isAsking || !question.trim()}
-                aria-label="Submit Query"
-                className="shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-transform active:scale-95 disabled:opacity-30 disabled:active:scale-100 text-white"
-                style={{ backgroundColor: theme.accent }}
+                disabled={isAsking || (!question.trim() && !fileInfo)}
+                className="shrink-0 w-9 h-9 flex items-center justify-center bg-[#191919] text-[#FCFBFA] rounded-xl hover:bg-[#33322E] disabled:bg-neutral-200 disabled:text-neutral-400 transition-colors mb-0.5"
+                aria-label="Dispatch Query"
               >
-                {isAsking ? (
-                  <span className="inline-block w-4 h-4 border-[2px] border-white/30 border-t-white rounded-full animate-spin" />
-                ) : (
-                  <IconSend size={18} className="transform translate-x-[1px]" />
-                )}
+                <IconArrowUp size={16} />
               </button>
             </div>
-            <div className="text-center mt-3">
-              <span className="text-[10px] text-neutral-400 font-medium">AI can make mistakes. Consider verifying critical information.</span>
+            
+            <div className="text-center mt-2.5">
+              <p className="text-[10px] text-[#8C8A82] font-medium tracking-wide">System processing running over semantic indexing models.</p>
             </div>
           </div>
-        </div>
+        </footer>
       </div>
     </div>
   );
