@@ -11,7 +11,8 @@ import jsPDF from "jspdf";
  */
 
 const API_URL = import.meta.env.VITE_API_URL;
-const MAX_FILE_MB = 25;
+console.log("API_URL:", API_URL);
+const MAX_FILE_MB = 10000000;
 
 // Premium Studio Theme Palette
 const theme = {
@@ -248,7 +249,7 @@ export default function HomeGPT() {
     setIsAsking(true);
 
     try {
-      const res = await fetch(`${API_BASE}/ask`, {
+      const res = await fetch(`${API_URL}/ask`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
