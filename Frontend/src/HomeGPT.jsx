@@ -178,7 +178,10 @@ export default function HomeGPT() {
         body: JSON.stringify({ question: trimmed, history: chatHistory }),
         signal: controller.signal,
       });
-      if (!res.ok) throw new Error("Execution fault. Check terminal logs or pipeline gateway connectivity.");
+      if (!res.ok) {
+  const body = await res.json().catch(() => null);
+  throw new Error(body?.detail || "Execution fault. Check terminal logs or pipeline gateway connectivity.");
+}
       
       const data = await res.json();
       setMessages((prev) => [
@@ -208,7 +211,10 @@ export default function HomeGPT() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ filename: fileInfo.filename })
       });
-      if (!res.ok) throw new Error("Compilation failure during summary construction.");
+      if (!res.ok) {
+  const body = await res.json().catch(() => null);
+  throw new Error(body?.detail || "Compilation failure during summary construction.");
+}
       
       const data = await res.json();
       setMessages((prev) => [...prev, { id: uid(), role: "assistant", content: data.summary, isSummary: true }]);
