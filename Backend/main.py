@@ -24,7 +24,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "https://ai-research-assistant-lovat.vercel.app",
-    ],
+        ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -50,7 +50,6 @@ class QuestionRequest(BaseModel):
     question: str
     history: list = []
 
-# UPDATED: Added SummaryRequest to safely receive the filename
 class SummaryRequest(BaseModel):
     filename: str
 
@@ -130,10 +129,10 @@ async def ask_question(data: QuestionRequest):
             content = msg.get("content", "")
             history_text += f"{role}: {content}\n"
 
-        # Retrieve relevant chunks
+        # Retrieve relevant chunks (Reduced from 5 to 3 for Groq limits)
         results = collection.query(
             query_texts=[question],
-            n_results=5
+            n_results=3
         )
 
         # Print source IDs safely
@@ -148,6 +147,9 @@ async def ask_question(data: QuestionRequest):
         document_context = ""
         if results and results.get("documents") and len(results["documents"][0]) > 0:
             document_context = "\n".join(results["documents"][0])
+            
+        # SAFETY CUTOFF: Limit to ~25,000 chars to avoid exceeding Groq 12k TPM limits
+        document_context = document_context[:25000]
 
         context = f"""
 Conversation History:
@@ -167,7 +169,6 @@ Document Context:
         }
     except Exception as e:
         print(f"CRASH IN /ask: {str(e)}")
-        # This sends the exact Python error to your React frontend
         raise HTTPException(status_code=500, detail=f"Backend Error: {str(e)}")
 
 
@@ -178,10 +179,10 @@ Document Context:
 @app.post("/summary")
 async def generate_document_summary(data: SummaryRequest):
     try:
-        # Filter ChromaDB specifically for chunks belonging to this file
+        # Filter ChromaDB specifically for chunks belonging to this file (Reduced to 4)
         results = collection.query(
             query_texts=["document summary main topics events conclusion"],
-            n_results=10,
+            n_results=4,
             where={"source": data.filename}
         )
 
@@ -190,6 +191,9 @@ async def generate_document_summary(data: SummaryRequest):
             return {"summary": "Error: No indexed data found for this document. Please upload it again."}
 
         context = "\n".join(results["documents"][0])
+        
+        # SAFETY CUTOFF: Limit to ~30,000 chars to avoid exceeding Groq 12k TPM limits
+        context = context[:30000]
 
         summary_question = """
 Generate a structured summary of the document.
@@ -208,7 +212,6 @@ Include:
         }
     except Exception as e:
         print(f"CRASH IN /summary: {str(e)}")
-        # This sends the exact Python error to your React frontend
         raise HTTPException(status_code=500, detail=f"Backend Error: {str(e)}")
 
 # ----------------------------
