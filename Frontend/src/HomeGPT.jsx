@@ -10,7 +10,7 @@ import jsPDF from "jspdf";
  * POST /summary ()                                   -> { summary }
  */
 
-const API_BASE = "http://127.0.0.1:8000";
+const API_URL = import.meta.env.VITE_API_URL;
 const MAX_FILE_MB = 25;
 
 // Premium Studio Theme Palette
@@ -205,7 +205,7 @@ export default function HomeGPT() {
     setUploadError(null);
 
     try {
-      const res = await fetch(`${API_BASE}/upload`, { method: "POST", body: formData, signal: controller.signal });
+      const res = await fetch(`${API_URL}/upload`, { method: "POST", body: formData, signal: controller.signal });
       if (!res.ok) {
         const body = await res.json().catch(() => null);
         throw new Error(body?.detail || `Server synchronization failed (${res.status}).`);
@@ -284,7 +284,7 @@ export default function HomeGPT() {
     setAskError(null);
 
     try {
-      const res = await fetch(`${API_BASE}/summary`, { method: "POST", signal: controller.signal });
+      const res = await fetch(`${API_URL}/summary`, { method: "POST", signal: controller.signal });
       if (!res.ok) throw new Error("Failed to compile document summary.");
       const data = await res.json();
       setSummary(data.summary || "Summary generation returned empty.");
