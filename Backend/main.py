@@ -24,7 +24,9 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "https://ai-research-assistant-lovat.vercel.app",
-        ],
+        "http://localhost:5173",
+        "http://127.0.0.1:5173"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -62,17 +64,12 @@ async def upload_pdf(file: UploadFile = File(...)):
     try:
         file_path = os.path.join(UPLOAD_FOLDER, file.filename)
 
-        # Save uploaded PDF
         with open(file_path, "wb") as buffer:
             buffer.write(await file.read())
 
-        # Extract text
         text = extract_text_from_pdf(file_path)
-
-        # Create chunks
         chunks = chunk_text(text)
 
-        # Save chunks as txt files
         for i, chunk in enumerate(chunks, start=1):
             chunk_file = os.path.join(
                 CHUNKS_FOLDER,
@@ -81,7 +78,6 @@ async def upload_pdf(file: UploadFile = File(...)):
             with open(chunk_file, "w", encoding="utf-8") as f:
                 f.write(chunk)
 
-        # Store chunks in ChromaDB
         collection.add(
             documents=chunks,
             ids=[f"{file.filename}_chunk_{i}" for i in range(len(chunks))],
@@ -91,7 +87,6 @@ async def upload_pdf(file: UploadFile = File(...)):
         print(f"Total Chunks: {len(chunks)}")
         print("Stored in ChromaDB")
 
-        # Save extracted text
         txt_file = os.path.join(
             PROCESSED_FOLDER,
             file.filename.replace(".pdf", ".txt")
@@ -122,20 +117,18 @@ async def ask_question(data: QuestionRequest):
     try:
         question = data.question
         
-        # Process Conversation History
         history_text = ""
-        for msg in data.history[-6:]:
+        for msg in data.history[-4:]: # Reduced history context to save tokens
             role = msg.get("role", "")
             content = msg.get("content", "")
             history_text += f"{role}: {content}\n"
 
-        # Retrieve relevant chunks (Reduced from 5 to 3 for Groq limits)
+        # AGGRESSIVE FIX: Pull fewer chunks (2 instead of 3)
         results = collection.query(
             query_texts=[question],
-            n_results=3
+            n_results=2
         )
 
-        # Print source IDs safely
         print("\n========== SOURCES ==========")
         if results and results.get("ids") and len(results["ids"][0]) > 0:
             print(results["ids"][0])
@@ -143,13 +136,12 @@ async def ask_question(data: QuestionRequest):
             print("No sources found.")
         print("=============================\n")
 
-        # Build full context containing both history and document data
         document_context = ""
         if results and results.get("documents") and len(results["documents"][0]) > 0:
             document_context = "\n".join(results["documents"][0])
             
-        # SAFETY CUTOFF: Limit to ~25,000 chars to avoid exceeding Groq 12k TPM limits
-        document_context = document_context[:25000]
+        # AGGRESSIVE FIX: Limit to 12,000 characters (~3,000 tokens)
+        document_context = document_context[:12000]
 
         context = f"""
 Conversation History:
@@ -159,7 +151,6 @@ Document Context:
 {document_context}
 """
         
-        # Generate answer
         answer = generate_answer(context, question)
 
         return {
@@ -179,29 +170,28 @@ Document Context:
 @app.post("/summary")
 async def generate_document_summary(data: SummaryRequest):
     try:
-        # Filter ChromaDB specifically for chunks belonging to this file (Reduced to 4)
+        # AGGRESSIVE FIX: Pull fewer chunks for the summary (3 instead of 4)
         results = collection.query(
             query_texts=["document summary main topics events conclusion"],
-            n_results=4,
+            n_results=3,
             where={"source": data.filename}
         )
 
-        # Safety check if no chunks were found
         if not results or not results.get("documents") or len(results["documents"][0]) == 0:
             return {"summary": "Error: No indexed data found for this document. Please upload it again."}
 
         context = "\n".join(results["documents"][0])
         
-        # SAFETY CUTOFF: Limit to ~30,000 chars to avoid exceeding Groq 12k TPM limits
-        context = context[:30000]
+        # AGGRESSIVE FIX: Limit to 15,000 characters (~3,750 tokens)
+        context = context[:15000]
 
         summary_question = """
 Generate a structured summary of the document.
 
 Include:
 1. Main Topics
-2. Key Characters or Metrics
-3. Important Events or Concepts
+2. Key Metrics
+3. Important Concepts
 4. Conclusion
 """
 
