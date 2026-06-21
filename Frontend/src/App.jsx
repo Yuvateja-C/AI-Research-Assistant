@@ -1,5 +1,5 @@
 import HomeGPT from "./pages/HomeGPT";
-
+import Navbar from "./Navbar";
 function App() {
 return <HomeGPT />;
 }
