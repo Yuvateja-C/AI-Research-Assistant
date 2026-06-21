@@ -7,7 +7,7 @@ import jsPDF from "jspdf";
  * Talks to a backend exposing:
  * POST /upload  (multipart/form-data, field "file") -> { filename, total_chunks }
  * POST /ask     (json { question, history })         -> { answer, sources }
- * POST /summary ()                                   -> { summary }
+ * POST /summary (json { filename })                  -> { summary }
  */
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -229,7 +229,6 @@ export default function HomeGPT() {
     const trimmed = question.trim();
     if (!trimmed || isAsking) return;
 
-    // Capture the history before updating the UI with the new message
     const chatHistory = messages.map((msg) => ({
       role: msg.role,
       content: msg.content,
@@ -277,7 +276,8 @@ export default function HomeGPT() {
   };
 
   const handleSummary = async () => {
-    if (isGeneratingSummary) return;
+    // UPDATED: Now checks for fileInfo.filename to prevent sending an empty payload
+    if (isGeneratingSummary || !fileInfo || !fileInfo.filename) return;
     
     const controller = new AbortController();
     summaryAbortRef.current = controller;
@@ -285,7 +285,13 @@ export default function HomeGPT() {
     setAskError(null);
 
     try {
-      const res = await fetch(`${API_URL}/summary`, { method: "POST", signal: controller.signal });
+      // UPDATED: Now sends the filename to the backend as JSON
+      const res = await fetch(`${API_URL}/summary`, { 
+        method: "POST", 
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filename: fileInfo.filename }),
+        signal: controller.signal 
+      });
       if (!res.ok) throw new Error("Failed to compile document summary.");
       const data = await res.json();
       setSummary(data.summary || "Summary generation returned empty.");
