@@ -198,23 +198,23 @@ export default function HomeGPT() {
     }
   };
 
-  const handleSummary = async () => {
-    if (!fileInfo || !fileInfo.filename || isAsking) return;
+ const handleSummary = async () => {
+    if (!fileInfo || isAsking) return; // Removed the filename check
     
     setAskError(null);
     setIsAsking(true);
     setMessages((prev) => [...prev, { id: uid(), role: "user", content: "Synthesize a comprehensive executive summary from the uploaded source architecture." }]);
 
     try {
+      // FIX: Removed headers and body because your backend accepts 0 arguments
       const res = await fetch(`${API_URL}/summary`, { 
-        method: "POST", 
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ filename: fileInfo.filename })
+        method: "POST" 
       });
+      
       if (!res.ok) {
-  const body = await res.json().catch(() => null);
-  throw new Error(body?.detail || "Compilation failure during summary construction.");
-}
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.detail || "Compilation failure during summary construction.");
+      }
       
       const data = await res.json();
       setMessages((prev) => [...prev, { id: uid(), role: "assistant", content: data.summary, isSummary: true }]);
