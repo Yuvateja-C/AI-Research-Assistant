@@ -48,6 +48,8 @@ class QuestionRequest(BaseModel):
     question: str
     history: list = []
 
+class SummaryRequest(BaseModel):
+    filename: str
 
 # ----------------------------
 # Upload PDF Endpoint
@@ -55,11 +57,7 @@ class QuestionRequest(BaseModel):
 
 @app.post("/upload")
 async def upload_pdf(file: UploadFile = File(...)):
-
-    file_path = os.path.join(
-        UPLOAD_FOLDER,
-        file.filename
-    )
+    file_path = os.path.join(UPLOAD_FOLDER, file.filename)
 
     # Save uploaded PDF
     with open(file_path, "wb") as buffer:
@@ -73,30 +71,18 @@ async def upload_pdf(file: UploadFile = File(...)):
 
     # Save chunks as txt files
     for i, chunk in enumerate(chunks, start=1):
-
         chunk_file = os.path.join(
             CHUNKS_FOLDER,
             f"{file.filename.replace('.pdf', '')}_chunk_{i}.txt"
         )
-
-        with open(
-            chunk_file,
-            "w",
-            encoding="utf-8"
-        ) as f:
+        with open(chunk_file, "w", encoding="utf-8") as f:
             f.write(chunk)
 
     # Store chunks in ChromaDB
     collection.add(
         documents=chunks,
-        ids=[
-            f"{file.filename}_chunk_{i}"
-            for i in range(len(chunks))
-        ],
-        metadatas=[
-            {"source": file.filename}
-            for _ in chunks
-        ]
+        ids=[f"{file.filename}_chunk_{i}" for i in range(len(chunks))],
+        metadatas=[{"source": file.filename} for _ in chunks]
     )
 
     print(f"Total Chunks: {len(chunks)}")
@@ -108,11 +94,7 @@ async def upload_pdf(file: UploadFile = File(...)):
         file.filename.replace(".pdf", ".txt")
     )
 
-    with open(
-        txt_file,
-        "w",
-        encoding="utf-8"
-    ) as f:
+    with open(txt_file, "w", encoding="utf-8") as f:
         f.write(text)
 
     return {
@@ -131,7 +113,6 @@ async def upload_pdf(file: UploadFile = File(...)):
 
 @app.post("/ask")
 async def ask_question(data: QuestionRequest):
-
     question = data.question
     
     # Process Conversation History
@@ -147,27 +128,18 @@ async def ask_question(data: QuestionRequest):
         n_results=5
     )
 
-    # Print source IDs
+    # Print source IDs safely
     print("\n========== SOURCES ==========")
-    print(results["ids"][0])
+    if results and results["ids"] and len(results["ids"][0]) > 0:
+        print(results["ids"][0])
+    else:
+        print("No sources found.")
     print("=============================\n")
 
-    # Print retrieved chunks
-    print("\n========== RETRIEVED DOCUMENTS ==========")
-
-    for i, doc in enumerate(
-        results["documents"][0],
-        start=1
-    ):
-        print(f"\n--- Chunk {i} ---")
-        print(doc[:300])
-
-    print("\n=========================================\n")
-
     # Build full context containing both history and document data
-    document_context = "\n".join(
-        results["documents"][0]
-    )
+    document_context = ""
+    if results and results["documents"] and len(results["documents"][0]) > 0:
+        document_context = "\n".join(results["documents"][0])
 
     context = f"""
 Conversation History:
@@ -177,49 +149,46 @@ Document Context:
 {document_context}
 """
     
-    print("\n========== FINAL CONTEXT ==========")
-    print(context[:3000])
-    print("\n===================================\n")
-
     # Generate answer
-    answer = generate_answer(
-        context,
-        question
-    )
+    answer = generate_answer(context, question)
 
     return {
         "question": question,
         "answer": answer,
-        "sources": results["ids"][0]
+        "sources": results["ids"][0] if results and results["ids"] else []
     }
 
 
+# ----------------------------
+# Summary Endpoint
+# ----------------------------
+
 @app.post("/summary")
-async def generate_document_summary():
+async def generate_document_summary(data: SummaryRequest):
+    # Query ChromaDB specifically for this document using the filename
     results = collection.query(
-        query_texts=["document summary"],
-        n_results=10
+        query_texts=["document summary main topics events conclusion"],
+        n_results=10,
+        where={"source": data.filename}
     )
 
-    context = "\n".join(
-        results["documents"][0]
-    )
+    # Check if we got any results back
+    if not results or not results["documents"] or len(results["documents"][0]) == 0:
+        return {"summary": "Error: No indexed data found for this document."}
+
+    context = "\n".join(results["documents"][0])
 
     summary_question = """
 Generate a structured summary of the document.
 
 Include:
-
 1. Main Topics
-2. Key Characters
-3. Important Events
+2. Key Characters or Metrics
+3. Important Events or Concepts
 4. Conclusion
 """
 
-    summary = generate_answer(
-        context,
-        summary_question
-    )
+    summary = generate_answer(context, summary_question)
 
     return {
         "summary": summary
