@@ -1,7 +1,13 @@
-import HomeGPT from "./pages/HomeGPT";
+import HomeGPT from "./HomeGPT";
 import Navbar from "./Navbar";
+
 function App() {
-return <HomeGPT />;
+  return (
+    <>
+      <Navbar />
+      <HomeGPT />
+    </>
+  );
 }
 
 export default App;
