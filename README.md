@@ -86,7 +86,7 @@ npm run dev
 
 ```
 
-*(The frontend will launch on `http://localhost:5173`)*
+*(The frontend will launch on `https://ai-research-assistant-6vso.vercel.app/`)*
 
 ---
 
