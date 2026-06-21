@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # AI Research Assistant
 
 ## Overview
