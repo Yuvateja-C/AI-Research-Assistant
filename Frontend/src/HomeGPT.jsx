@@ -157,8 +157,16 @@ export default function HomeGPT() {
   };
 
   const handleAsk = async () => {
-    const trimmed = question.trim();
-    if (!trimmed || isAsking) return;
+    const res = await fetch(`${API_URL}/ask`, {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ 
+    question: trimmed,
+    history: chatHistory,
+    filename: fileInfo?.filename // <-- ADD THIS LINE
+  }),
+  signal: controller.signal,
+});
 
     const chatHistory = messages.map((msg) => ({ role: msg.role, content: msg.content }));
 
@@ -207,9 +215,13 @@ export default function HomeGPT() {
 
     try {
       // FIX: Removed headers and body because your backend accepts 0 arguments
-      const res = await fetch(`${API_URL}/summary`, { 
-        method: "POST" 
-      });
+      // Open HomeGPT.jsx and pass the file metadata:
+        const res = await fetch(`${API_URL}/summary`, { 
+        method: "POST", 
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filename: fileInfo?.filename }), 
+        signal: controller.signal 
+    });
       
       if (!res.ok) {
         const body = await res.json().catch(() => null);
