@@ -157,83 +157,93 @@ export default function HomeGPT() {
   };
 
   const handleAsk = async () => {
-    const res = await fetch(`${API_URL}/ask`, {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ 
-    question: trimmed,
-    history: chatHistory,
-    filename: fileInfo?.filename // <-- ADD THIS LINE
-  }),
-  signal: controller.signal,
-});
+    const trimmed = question.trim();
+    if (!trimmed || isAsking) return;
 
-    const chatHistory = messages.map((msg) => ({ role: msg.role, content: msg.content }));
+    // Capture the history before updating the UI
+    const chatHistory = messages.map((msg) => ({
+      role: msg.role,
+      content: msg.content,
+    }));
 
     setMessages((prev) => [...prev, { id: uid(), role: "user", content: trimmed }]);
+    setQuestionsAsked((prev) => prev + 1);
     setQuestion("");
     setAskError(null);
-    if (inputRef.current) inputRef.current.style.height = "auto";
 
+    if (inputRef.current) {
+      inputRef.current.style.height = "auto";
+    }
+
+    // THIS DEFINES THE CONTROLLER
     const controller = new AbortController();
     askAbortRef.current = controller;
     setIsAsking(true);
 
     try {
-      const res = await fetch(`${API_URL}/ask`, {
+      const res = await fetch(`${API_BASE}/ask`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: trimmed, history: chatHistory }),
-        signal: controller.signal,
+        body: JSON.stringify({ 
+          question: trimmed,
+          history: chatHistory,
+          filename: fileInfo?.filename // <--- Added this to fix the 422 error
+        }),
+        signal: controller.signal, // <--- Uses the controller properly
       });
+      
       if (!res.ok) {
-  const body = await res.json().catch(() => null);
-  throw new Error(body?.detail || "Execution fault. Check terminal logs or pipeline gateway connectivity.");
-}
+        // This will print the exact backend error to your console if it fails
+        const errorBody = await res.json().catch(() => null);
+        console.error("ASK REJECTION DETAILS:", errorBody); 
+        throw new Error(errorBody?.detail || `Analysis failed (${res.status}).`);
+      }
       
       const data = await res.json();
-      setMessages((prev) => [
-        ...prev, 
-        { id: uid(), role: "assistant", content: data.answer || "No relevant data fragments extracted.", sources: data.sources || [] }
-      ]);
+      setMessages((prev) => [...prev, { id: uid(), role: "assistant", content: data.answer || "No insights were returned.", sources: data.sources || [] }]);
     } catch (error) {
       if (error.name === "AbortError") return;
-      setAskError(error.message);
+      const message = error.message || "Failed to process query. Check server status.";
+      setAskError(message);
+      setMessages((prev) => [...prev, { id: uid(), role: "assistant", content: message, isError: true }]);
     } finally {
       setIsAsking(false);
       askAbortRef.current = null;
       inputRef.current?.focus();
     }
   };
-
- const handleSummary = async () => {
-    if (!fileInfo || isAsking) return; // Removed the filename check
+const handleSummary = async () => {
+    if (isGeneratingSummary) return;
     
+    // THIS DEFINES THE CONTROLLER
+    const controller = new AbortController();
+    summaryAbortRef.current = controller;
+    setIsGeneratingSummary(true);
     setAskError(null);
-    setIsAsking(true);
-    setMessages((prev) => [...prev, { id: uid(), role: "user", content: "Synthesize a comprehensive executive summary from the uploaded source architecture." }]);
 
     try {
-      // FIX: Removed headers and body because your backend accepts 0 arguments
-      // Open HomeGPT.jsx and pass the file metadata:
-        const res = await fetch(`${API_URL}/summary`, { 
-        method: "POST", 
+      const res = await fetch(`${API_BASE}/summary`, { 
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ filename: fileInfo?.filename }), 
+        body: JSON.stringify({ filename: fileInfo?.filename }), // <--- Added this to fix 422
         signal: controller.signal 
-    });
+      });
       
       if (!res.ok) {
-        const body = await res.json().catch(() => null);
-        throw new Error(body?.detail || "Compilation failure during summary construction.");
+        // This will print the exact backend error to your console if it fails
+        const errorBody = await res.json().catch(() => null);
+        console.error("SUMMARY REJECTION DETAILS:", errorBody);
+        throw new Error("Failed to compile document summary.");
       }
       
       const data = await res.json();
-      setMessages((prev) => [...prev, { id: uid(), role: "assistant", content: data.summary, isSummary: true }]);
+      setSummary(data.summary || "Summary generation returned empty.");
     } catch (error) {
-      setAskError(error.message);
+      if (error.name === "AbortError") return;
+      setAskError(error.message || "Failed to generate summary.");
     } finally {
-      setIsAsking(false);
+      setIsGeneratingSummary(false);
+      summaryAbortRef.current = null;
     }
   };
 
