@@ -63,14 +63,18 @@ const TypingIndicator = () => (
   </div>
 );
 
+// --- MAIN APPLICATION COMPONENT ---
 export default function HomeGPT() {
+  // 1. All Application State Declared Together
   const [fileInfo, setFileInfo] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState(null);
-
+  const [summary, setSummary] = useState("");
+  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
   const [question, setQuestion] = useState("");
   const [isAsking, setIsAsking] = useState(false);
   const [askError, setAskError] = useState(null);
+  const [questionsAsked, setQuestionsAsked] = useState(0);
   
   const [messages, setMessages] = useState([
     {
@@ -80,13 +84,15 @@ export default function HomeGPT() {
     },
   ]);
 
+  // 2. All Refs Declared Together
   const fileInputRef = useRef(null);
   const inputRef = useRef(null);
   const messagesEndRef = useRef(null);
   const uploadAbortRef = useRef(null);
   const askAbortRef = useRef(null);
+  const summaryAbortRef = useRef(null);
 
-  // Smooth pinning to viewport bottom when text streams
+  // 3. Side Effects (useEffect)
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isAsking]);
@@ -95,6 +101,7 @@ export default function HomeGPT() {
     return () => {
       uploadAbortRef.current?.abort();
       askAbortRef.current?.abort();
+      summaryAbortRef.current?.abort();
     };
   }, []);
 
@@ -110,6 +117,7 @@ export default function HomeGPT() {
     adjustTextareaHeight();
   }, [question, adjustTextareaHeight]);
 
+  // 4. Action Handlers
   const handleUpload = async (e) => {
     const selectedFile = e.target.files?.[0];
     if (!selectedFile) return;
@@ -160,7 +168,6 @@ export default function HomeGPT() {
     const trimmed = question.trim();
     if (!trimmed || isAsking) return;
 
-    // Capture the history before updating the UI
     const chatHistory = messages.map((msg) => ({
       role: msg.role,
       content: msg.content,
@@ -175,25 +182,24 @@ export default function HomeGPT() {
       inputRef.current.style.height = "auto";
     }
 
-    // THIS DEFINES THE CONTROLLER
     const controller = new AbortController();
     askAbortRef.current = controller;
     setIsAsking(true);
 
     try {
-      const res = await fetch(`${API_BASE}/ask`, {
+      // Changed API_BASE to API_URL here to match your imports
+      const res = await fetch(`${API_URL}/ask`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
           question: trimmed,
           history: chatHistory,
-          filename: fileInfo?.filename // <--- Added this to fix the 422 error
+          filename: fileInfo?.filename
         }),
-        signal: controller.signal, // <--- Uses the controller properly
+        signal: controller.signal,
       });
       
       if (!res.ok) {
-        // This will print the exact backend error to your console if it fails
         const errorBody = await res.json().catch(() => null);
         console.error("ASK REJECTION DETAILS:", errorBody); 
         throw new Error(errorBody?.detail || `Analysis failed (${res.status}).`);
@@ -212,25 +218,25 @@ export default function HomeGPT() {
       inputRef.current?.focus();
     }
   };
-const handleSummary = async () => {
+
+  const handleSummary = async () => {
     if (isGeneratingSummary) return;
     
-    // THIS DEFINES THE CONTROLLER
     const controller = new AbortController();
     summaryAbortRef.current = controller;
     setIsGeneratingSummary(true);
     setAskError(null);
 
     try {
-      const res = await fetch(`${API_BASE}/summary`, { 
+      // Changed API_BASE to API_URL here to match your imports
+      const res = await fetch(`${API_URL}/summary`, { 
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ filename: fileInfo?.filename }), // <--- Added this to fix 422
+        body: JSON.stringify({ filename: fileInfo?.filename }), 
         signal: controller.signal 
       });
       
       if (!res.ok) {
-        // This will print the exact backend error to your console if it fails
         const errorBody = await res.json().catch(() => null);
         console.error("SUMMARY REJECTION DETAILS:", errorBody);
         throw new Error("Failed to compile document summary.");
@@ -238,6 +244,17 @@ const handleSummary = async () => {
       
       const data = await res.json();
       setSummary(data.summary || "Summary generation returned empty.");
+      
+      // Add the summary to the chat window so the user can export it
+      setMessages((prev) => [
+        ...prev, 
+        { 
+          id: uid(), 
+          role: "assistant", 
+          content: data.summary || "Summary generation returned empty.", 
+          isSummary: true // Triggers the PDF export button in your UI
+        }
+      ]);
     } catch (error) {
       if (error.name === "AbortError") return;
       setAskError(error.message || "Failed to generate summary.");
@@ -276,8 +293,10 @@ const handleSummary = async () => {
     setAskError(null);
     setUploadError(null);
     setQuestion("");
+    setSummary("");
   };
 
+  // 5. Render Block
   return (
     <div className="flex h-screen w-full bg-[#FCFBFA] text-[#191919] font-sans antialiased selection:bg-[#EADECE]/60 overflow-hidden relative">
       
@@ -409,13 +428,18 @@ const handleSummary = async () => {
                 </div>
 
                 {/* Instant Executive Summary Action */}
-                {fileInfo && !isAsking && (
+                {fileInfo && !isAsking && !isGeneratingSummary && (
                   <button 
                     onClick={handleSummary}
                     className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider px-3 py-1.5 bg-white border border-[#E5E4E0] text-[#66645E] hover:text-black hover:border-neutral-400 rounded-xl shadow-sm transition-all"
                   >
                     <IconSparkles size={11} /> Extract Summary
                   </button>
+                )}
+                {isGeneratingSummary && (
+                   <div className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider px-3 py-1.5 bg-white border border-[#E5E4E0] text-[#66645E] rounded-xl shadow-sm">
+                    <span className="w-3 h-3 border-2 border-[#8C8A82] border-t-black rounded-full animate-spin" /> Processing...
+                  </div>
                 )}
               </div>
             )}
