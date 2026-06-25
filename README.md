@@ -2,6 +2,9 @@
 
 A production-ready, full-stack Retrieval-Augmented Generation (RAG) application built to extract, analyze, and synthesize insights from complex PDF documents. Designed with a premium, minimalist "Claude-style" interface, this tool allows users to upload research papers or business documents and instantly query them using ultra-fast LLMs.
 
+🌐 **Live Demo:** [https://researchai-app.vercel.app](https://researchai-app.vercel.app)
+
+
 ## ✨ Core Features
 
 * **🧠 Semantic Document Ingestion:** Upload any PDF. The backend automatically extracts the text, applies semantic chunking, and vectorizes the data into a local database.
@@ -80,7 +83,7 @@ Start the Vite development server:
 npm run dev
 ```
 
-*(The frontend will launch on `https://ai-research-assistant-6vso.vercel.app/`)*
+*(The frontend will launch on `https://researchai-app.vercel.app/`)*
 
 ---
 
