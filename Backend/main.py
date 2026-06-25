@@ -24,8 +24,7 @@ app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-    "https://vercel.com/yuvateja-cs-projects/ai-research-assistant-6vso/92mJ5oxPhGfxSAC7guvqPhtKqqU4",
-    "https://ai-research-assistant-6vso.vercel.app"
+    "https://ai-research-assistant-cyan.vercel.app/",
     "http://localhost:3000", # Good to keep for local development
     "http://localhost:5173"  # Vite default
 ],
