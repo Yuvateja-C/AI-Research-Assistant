@@ -1,1 +1,51 @@
-# Nodenode_modules/dist/build/# Python__pycache__/*.pyc.venv/venv/# Env / secrets.env.env.local# OS.DS_Store
+# ── Environment & Secrets ──────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ── Python ──────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pdb
+*.egg-info/
+dist/
+build/
+*.spec
+venv/
+.venv/
+env/
+
+# ── Node / Frontend ─────────────────────────────────────
+node_modules/
+Frontend/node_modules/
+Frontend/dist/
+Frontend/.env.local
+.pnpm-store/
+
+# ── Vercel ──────────────────────────────────────────────
+.vercel/
+
+# ── ChromaDB / Data ─────────────────────────────────────
+Backend/chroma_db/
+Backend/uploads/
+Backend/processed/
+Backend/chunks/
+
+# ── OS / Editor ─────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/
+*.suo
+*.user
+
+# ── Logs ────────────────────────────────────────────────
+*.log
+logs/
+
+# ── Temp files ──────────────────────────────────────────
+*.gitignore_temp
