@@ -6,7 +6,7 @@ import jsPDF from "jspdf";
  */
 
 const API_URL = import.meta.env.VITE_API_URL;
-const MAX_FILE_MB = 10;
+const MAX_FILE_MB = 100000;
 
 function uid() {
   return `msg_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
