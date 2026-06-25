@@ -25,6 +25,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
     "https://ai-research-assistant-gamma-six.vercel.app",
+    "https://ai-research-assistant-yuvateja-cs-projects.vercel.app",
     "http://localhost:3000", # Good to keep for local development
     "http://localhost:5173"  # Vite default
 ],
