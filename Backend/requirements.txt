@@ -6,3 +6,4 @@ groq
 pypdf
 python-multipart
 python-dotenv
+PyMuPDF
