@@ -12,6 +12,7 @@ from database import collection
 from llm_service import generate_answer
 
 import os
+import shutil
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
@@ -59,25 +60,21 @@ class SummaryRequest(BaseModel):
 # Upload PDF Endpoint
 # ----------------------------
 
+# Removed 'async' to allow FastAPI to run this blocking code in a background thread
 @app.post("/upload")
-async def upload_pdf(file: UploadFile = File(...)):
+def upload_pdf(file: UploadFile = File(...)):
     try:
         file_path = os.path.join(UPLOAD_FOLDER, file.filename)
 
+        # Faster file writing using shutil
         with open(file_path, "wb") as buffer:
-            buffer.write(await file.read())
+            shutil.copyfileobj(file.file, buffer)
 
+        # 1. Extract and Chunk
         text = extract_text_from_pdf(file_path)
         chunks = chunk_text(text)
 
-        for i, chunk in enumerate(chunks, start=1):
-            chunk_file = os.path.join(
-                CHUNKS_FOLDER,
-                f"{file.filename.replace('.pdf', '')}_chunk_{i}.txt"
-            )
-            with open(chunk_file, "w", encoding="utf-8") as f:
-                f.write(chunk)
-
+        # 2. Add to ChromaDB (Storage)
         collection.add(
             documents=chunks,
             ids=[f"{file.filename}_chunk_{i}" for i in range(len(chunks))],
@@ -87,11 +84,11 @@ async def upload_pdf(file: UploadFile = File(...)):
         print(f"Total Chunks: {len(chunks)}")
         print("Stored in ChromaDB")
 
+        # 3. Save only the full text (Optional, but much faster than saving chunks)
         txt_file = os.path.join(
             PROCESSED_FOLDER,
             file.filename.replace(".pdf", ".txt")
         )
-
         with open(txt_file, "w", encoding="utf-8") as f:
             f.write(text)
 
@@ -100,7 +97,6 @@ async def upload_pdf(file: UploadFile = File(...)):
             "status": "processed",
             "text_file": txt_file,
             "total_chunks": len(chunks),
-            "chunks_folder": CHUNKS_FOLDER,
             "stored_in_chromadb": True
         }
     except Exception as e:
