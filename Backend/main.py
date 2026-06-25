@@ -10,6 +10,7 @@ from chunk_service import chunk_text
 from pdf_service import extract_text_from_pdf
 from database import collection
 from llm_service import generate_answer
+from embeddings_service import generate_embeddings
 
 import os
 import shutil
@@ -75,9 +76,13 @@ def upload_pdf(file: UploadFile = File(...)):
         text = extract_text_from_pdf(file_path)
         chunks = chunk_text(text)
 
+        # Generate embeddings explicitly
+        embeddings = generate_embeddings(chunks)
+
         # 2. Add to ChromaDB (Storage)
         collection.add(
             documents=chunks,
+            embeddings=embeddings,
             ids=[f"{file.filename}_chunk_{i}" for i in range(len(chunks))],
             metadatas=[{"source": file.filename} for _ in chunks]
         )
@@ -120,9 +125,12 @@ async def ask_question(data: QuestionRequest):
             content = msg.get("content", "")
             history_text += f"{role}: {content}\n"
 
+        # Generate query embeddings explicitly
+        query_embeddings = generate_embeddings([question])
+
         # AGGRESSIVE FIX: Pull fewer chunks (2 instead of 3)
         results = collection.query(
-            query_texts=[question],
+            query_embeddings=query_embeddings,
             n_results=2
         )
 
@@ -167,9 +175,12 @@ Document Context:
 @app.post("/summary")
 async def generate_document_summary(data: SummaryRequest):
     try:
+        # Generate query embeddings explicitly for summary
+        query_embeddings = generate_embeddings(["document summary main topics events conclusion"])
+
         # AGGRESSIVE FIX: Pull fewer chunks for the summary (3 instead of 4)
         results = collection.query(
-            query_texts=["document summary main topics events conclusion"],
+            query_embeddings=query_embeddings,
             n_results=3,
             where={"source": data.filename}
         )

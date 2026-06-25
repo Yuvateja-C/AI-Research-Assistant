@@ -276,7 +276,7 @@ export default function HomeGPT() {
   };
 
   const handleSummary = async () => {
-    if (isGeneratingSummary) return;
+    if (isGeneratingSummary || !fileInfo) return;
     
     const controller = new AbortController();
     summaryAbortRef.current = controller;
@@ -284,7 +284,14 @@ export default function HomeGPT() {
     setAskError(null);
 
     try {
-      const res = await fetch(`${API_BASE}/summary`, { method: "POST", signal: controller.signal });
+      const res = await fetch(`${API_BASE}/summary`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ filename: fileInfo.filename }),
+        signal: controller.signal
+      });
       if (!res.ok) throw new Error("Failed to compile document summary.");
       const data = await res.json();
       setSummary(data.summary || "Summary generation returned empty.");
