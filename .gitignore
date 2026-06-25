@@ -16,6 +16,7 @@ build/
 venv/
 .venv/
 env/
+Backend/local_model/
 
 # ── Node / Frontend ─────────────────────────────────────
 node_modules/
