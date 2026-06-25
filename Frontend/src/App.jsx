@@ -1,7 +1,7 @@
 import HomeGPT from "./pages/HomeGPT";
 
 function App() {
-return <HomeGPT />;
+  return <HomeGPT />;
 }
 
 export default App;

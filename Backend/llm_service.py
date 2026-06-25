@@ -1,12 +1,7 @@
 from urllib import response
-
 from groq import Groq
 from dotenv import load_dotenv
-import os 
-from opentelemetry import context
-
-
-
+import os
 
 env_path = os.path.join(
     os.path.dirname(__file__),
@@ -16,8 +11,6 @@ env_path = os.path.join(
 load_dotenv(env_path)
 
 api_key = os.getenv("GROQ_API_KEY")
-
-print("Loaded Key:", api_key)  # temporary test
 
 client = Groq(api_key=api_key)
 
