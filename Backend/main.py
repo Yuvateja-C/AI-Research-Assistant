@@ -627,24 +627,24 @@ async def upload_large_pdf(
         else:
             raise HTTPException(status_code=400, detail="Unsupported file format")
             
-            # Chunk when buffer is large enough
-            while len(text_buffer) >= chunk_size:
-                chunk = text_buffer[:chunk_size]
-                page_chunks.append(chunk)
-                text_buffer = text_buffer[chunk_size:]
+        # Chunk when buffer is large enough
+        while len(text_buffer) >= chunk_size:
+            chunk = text_buffer[:chunk_size]
+            page_chunks.append(chunk)
+            text_buffer = text_buffer[chunk_size:]
 
-                # Embed and index in batches of 100 to optimize API speed
-                if len(page_chunks) >= 100:
-                    embeddings = generate_embeddings(page_chunks)
-                    ids = [f"{chat_id}_chunk_{total_chunks_processed + i}" for i in range(len(page_chunks))]
-                    collection.add(
-                        documents=page_chunks,
-                        embeddings=embeddings,
-                        ids=ids,
-                        metadatas=[{"source": filename, "chat_id": chat_id} for _ in page_chunks]
-                    )
-                    total_chunks_processed += len(page_chunks)
-                    page_chunks = []
+            # Embed and index in batches of 100 to optimize API speed
+            if len(page_chunks) >= 100:
+                embeddings = generate_embeddings(page_chunks)
+                ids = [f"{chat_id}_chunk_{total_chunks_processed + i}" for i in range(len(page_chunks))]
+                collection.add(
+                    documents=page_chunks,
+                    embeddings=embeddings,
+                    ids=ids,
+                    metadatas=[{"source": filename, "chat_id": chat_id} for _ in page_chunks]
+                )
+                total_chunks_processed += len(page_chunks)
+                page_chunks = []
 
         # Flush leftover buffer
         if text_buffer:
