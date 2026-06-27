@@ -7,12 +7,13 @@ import sqlite3
 import re
 import secrets
 from fastapi import FastAPI, UploadFile, File, HTTPException, Depends, Request, Response, Cookie, Header
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
 from chunk_service import chunk_text
 from pdf_service import extract_text_from_pdf
 from database import collection, get_db
-from llm_service import generate_answer
+from llm_service import generate_answer, generate_answer_stream
 from embeddings_service import generate_embeddings
 from auth_service import hash_password, verify_password, create_session, get_user_from_token, delete_session
 
@@ -523,24 +524,34 @@ async def ask_chat_question(
                 sources = results["ids"][0]
 
         context = f"Conversation History:\n{history_text}\n\nDocument Context:\n{document_context}"
-        answer = generate_answer(context, data.question)
 
-        # Create assistant message in DB
-        assistant_msg_id = str(uuid.uuid4())
-        cursor.execute(
-            "INSERT INTO messages (id, chat_id, role, content, sources, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-            (assistant_msg_id, chat_id, "assistant", answer, json.dumps(sources), int(time.time() * 1000))
-        )
-        
-        # Update chat updated_at
-        cursor.execute("UPDATE chats SET updated_at = ? WHERE id = ?", (int(time.time() * 1000), chat_id))
+        async def event_generator():
+            # Send sources first
+            yield f"data: {json.dumps({'sources': [{'chunk_index': idx, 'score': 0.9} for idx, _ in enumerate(sources)]})}\n\n"
+            
+            full_answer = ""
+            for chunk in generate_answer_stream(context, data.question):
+                full_answer += chunk
+                yield f"data: {json.dumps({'text': chunk})}\n\n"
+
+            # Create assistant message in DB at the end of the stream
+            conn_gen = get_db()
+            cursor_gen = conn_gen.cursor()
+            assistant_msg_id = str(uuid.uuid4())
+            cursor_gen.execute(
+                "INSERT INTO messages (id, chat_id, role, content, sources, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+                (assistant_msg_id, chat_id, "assistant", full_answer, json.dumps(sources), int(time.time() * 1000))
+            )
+            cursor_gen.execute("UPDATE chats SET updated_at = ? WHERE id = ?", (int(time.time() * 1000), chat_id))
+            conn_gen.commit()
+            conn_gen.close()
+
+            yield "data: [DONE]\n\n"
+
         conn.commit()
         conn.close()
 
-        return {
-            "answer": answer,
-            "sources": [{"chunk_index": idx, "score": 0.9} for idx, _ in enumerate(sources)]
-        }
+        return StreamingResponse(event_generator(), media_type="text/event-stream")
     except Exception as e:
         conn.close()
         raise HTTPException(status_code=500, detail=f"Query failed: {str(e)}")
@@ -580,21 +591,32 @@ async def generate_chat_summary(
 
         context = "\n".join(results["documents"][0])[:15000]
         summary_question = "Generate a structured summary: Main Topics, Key Metrics, Important Concepts, Conclusion."
-        summary = generate_answer(context, summary_question)
 
-        # Save summary to DB
-        cursor.execute("UPDATE chats SET summary = ?, updated_at = ? WHERE id = ?", (summary, int(time.time() * 1000), chat_id))
-        
-        # Save assistant message for summary
-        msg_id = str(uuid.uuid4())
-        cursor.execute(
-            "INSERT INTO messages (id, chat_id, role, content, created_at) VALUES (?, ?, ?, ?, ?)",
-            (msg_id, chat_id, "assistant", summary, int(time.time() * 1000))
-        )
+        async def summary_generator():
+            full_summary = ""
+            for chunk in generate_answer_stream(context, summary_question):
+                full_summary += chunk
+                yield f"data: {json.dumps({'text': chunk})}\n\n"
+
+            # Save summary and assistant message to SQLite at the end of the stream
+            conn_gen = get_db()
+            cursor_gen = conn_gen.cursor()
+            cursor_gen.execute("UPDATE chats SET summary = ?, updated_at = ? WHERE id = ?", (full_summary, int(time.time() * 1000), chat_id))
+            
+            msg_id = str(uuid.uuid4())
+            cursor_gen.execute(
+                "INSERT INTO messages (id, chat_id, role, content, created_at) VALUES (?, ?, ?, ?, ?)",
+                (msg_id, chat_id, "assistant", full_summary, int(time.time() * 1000))
+            )
+            conn_gen.commit()
+            conn_gen.close()
+
+            yield "data: [DONE]\n\n"
+
         conn.commit()
         conn.close()
 
-        return {"summary": summary}
+        return StreamingResponse(summary_generator(), media_type="text/event-stream")
     except Exception as e:
         conn.close()
         raise HTTPException(status_code=500, detail=f"Summary failed: {str(e)}")

@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /dashboard/
+Sitemap: https://researchai-app.vercel.app/sitemap.xml
