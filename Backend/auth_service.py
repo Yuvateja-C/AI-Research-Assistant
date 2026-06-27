@@ -49,7 +49,7 @@ def get_user_from_token(token: str):
     
     user_id = row['user_id']
     cursor.execute(
-        "SELECT id, email, username, role, is_2fa_enabled, secret_2fa FROM users WHERE id = ?",
+        "SELECT id, email, username, role, is_2fa_enabled, secret_2fa, tier, trial_starts_at FROM users WHERE id = ?",
         (user_id,)
     )
     user = cursor.fetchone()

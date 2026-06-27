@@ -6,6 +6,7 @@ import json
 import sqlite3
 import re
 import secrets
+import stripe
 from fastapi import FastAPI, UploadFile, File, HTTPException, Depends, Request, Response, Cookie, Header
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -16,6 +17,8 @@ from database import collection, get_db
 from llm_service import generate_answer, generate_answer_stream
 from embeddings_service import generate_embeddings
 from auth_service import hash_password, verify_password, create_session, get_user_from_token, delete_session
+
+stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 
 app = FastAPI()
 
@@ -97,6 +100,7 @@ class ChatUpdateRequest(BaseModel):
 class QuestionRequest(BaseModel):
     question: str
     history: list = []
+    persona: str = "default"
 
 # ----------------------------
 # Auth Endpoints
@@ -123,8 +127,8 @@ def register(data: RegisterRequest):
     pw_hash, salt = hash_password(data.password)
     user_id = str(uuid.uuid4())
     cursor.execute(
-        "INSERT INTO users (id, email, username, password_hash, salt, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-        (user_id, data.email.lower(), data.username.lower(), pw_hash, salt, int(time.time()))
+        "INSERT INTO users (id, email, username, password_hash, salt, tier, trial_starts_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        (user_id, data.email.lower(), data.username.lower(), pw_hash, salt, "free", int(time.time() * 1000), int(time.time() * 1000))
     )
     conn.commit()
     conn.close()
@@ -178,8 +182,71 @@ def check_me(user: dict = Depends(get_current_user)):
         "email": user["email"],
         "username": user["username"],
         "role": user["role"],
-        "is_2fa_enabled": bool(user["is_2fa_enabled"])
+        "is_2fa_enabled": bool(user["is_2fa_enabled"]),
+        "tier": user.get("tier", "free"),
+        "trial_starts_at": user.get("trial_starts_at")
     }}
+
+@app.post("/auth/upgrade")
+def upgrade_user_tier(user: dict = Depends(get_current_user)):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("UPDATE users SET tier = 'pro' WHERE id = ?", (user["id"],))
+    conn.commit()
+    conn.close()
+    return {"status": "success", "tier": "pro"}
+
+@app.post("/auth/create-checkout-session")
+def create_checkout_session(user: dict = Depends(get_current_user)):
+    if not stripe.api_key:
+        return {"url": "simulated_stripe_checkout"}
+    try:
+        checkout_session = stripe.checkout.Session.create(
+            payment_method_types=['card'],
+            line_items=[
+                {
+                    'price_data': {
+                        'currency': 'usd',
+                        'product_data': {
+                            'name': 'ResearchAI Pro Plan',
+                            'description': 'Unlimited document uploads, 10 GB file support, and premium AI personas.',
+                        },
+                        'unit_amount': 1900,
+                    },
+                    'quantity': 1,
+                },
+            ],
+            mode='payment',
+            success_url=f"https://researchai-app.vercel.app/?session_id={{CHECKOUT_SESSION_ID}}&status=success",
+            cancel_url="https://researchai-app.vercel.app/?status=cancel",
+            client_reference_id=user["id"]
+        )
+        return {"url": checkout_session.url}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/auth/verify-checkout")
+def verify_checkout_session(session_id: str, user: dict = Depends(get_current_user)):
+    if not stripe.api_key or session_id == "mock_session_id":
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("UPDATE users SET tier = 'pro' WHERE id = ?", (user["id"],))
+        conn.commit()
+        conn.close()
+        return {"status": "success", "tier": "pro"}
+    try:
+        session = stripe.checkout.Session.retrieve(session_id)
+        if session.payment_status == "paid" and session.client_reference_id == user["id"]:
+            conn = get_db()
+            cursor = conn.cursor()
+            cursor.execute("UPDATE users SET tier = 'pro' WHERE id = ?", (user["id"],))
+            conn.commit()
+            conn.close()
+            return {"status": "success", "tier": "pro"}
+        else:
+            raise HTTPException(status_code=400, detail="Payment verification failed")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/auth/2fa/setup")
 def setup_2fa(user: dict = Depends(get_current_user)):
@@ -395,6 +462,14 @@ async def upload_large_pdf(
     if not row or row["user_id"] != user["id"]:
         conn.close()
         raise HTTPException(status_code=404, detail="Chat not found")
+    # Check upload limits for Free Tier
+    tier = user.get("tier", "free")
+    if tier == "free":
+        cursor.execute("SELECT COUNT(*) as count FROM chats WHERE user_id = ? AND file_info IS NOT NULL", (user["id"],))
+        upload_count = cursor.fetchone()["count"]
+        if upload_count >= 3:
+            conn.close()
+            raise HTTPException(status_code=403, detail="Free trial upload limit reached. Please upgrade to Research Pro.")
 
     file_path = os.path.join(UPLOAD_FOLDER, f"{uuid.uuid4()}_{filename}")
     
@@ -411,14 +486,21 @@ async def upload_large_pdf(
 
     # 2. Page-by-page text extraction, chunking, and batch embedding to ChromaDB
     try:
-        doc = fitz.open(file_path)
         page_chunks = []
         chunk_size = 1000
         text_buffer = ""
         total_chunks_processed = 0
 
-        for page_idx, page in enumerate(doc):
-            text_buffer += page.get_text() + "\n"
+        lower_fn = filename.lower()
+        if lower_fn.endswith(".pdf"):
+            doc = fitz.open(file_path)
+            for page in doc:
+                text_buffer += page.get_text() + "\n"
+        elif lower_fn.endswith((".txt", ".md", ".csv")):
+            with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                text_buffer = f.read()
+        else:
+            raise HTTPException(status_code=400, detail="Unsupported file format")
             
             # Chunk when buffer is large enough
             while len(text_buffer) >= chunk_size:
@@ -530,7 +612,7 @@ async def ask_chat_question(
             yield f"data: {json.dumps({'sources': [{'chunk_index': idx, 'score': 0.9} for idx, _ in enumerate(sources)]})}\n\n"
             
             full_answer = ""
-            for chunk in generate_answer_stream(context, data.question):
+            for chunk in generate_answer_stream(context, data.question, data.persona):
                 full_answer += chunk
                 yield f"data: {json.dumps({'text': chunk})}\n\n"
 

@@ -67,6 +67,16 @@ def init_db():
         FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
     )
     """)
+    # Database migrations for tier and trial columns
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN tier TEXT DEFAULT 'free'")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN trial_starts_at INTEGER")
+    except sqlite3.OperationalError:
+        pass
+
     conn.commit()
     conn.close()
 

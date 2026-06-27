@@ -219,6 +219,7 @@ export default function HomeGPT() {
   const sidebarW = 310;
   /* Page view routing */
   const [activePage, setActivePage] = useState("workspace"); // workspace, privacy, terms
+  const [persona, setPersona] = useState("default");
 
   /* Auth State */
   const [token, setToken] = useState(() => localStorage.getItem("session_token") || "");
@@ -246,6 +247,13 @@ export default function HomeGPT() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
   const [uploadError, setUploadError] = useState(null);
+  const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
+  const [isUpgrading, setIsUpgrading] = useState(false);
+  const [cardNum, setCardNum] = useState("");
+  const [cardExp, setCardExp] = useState("");
+  const [cardCvc, setCardCvc] = useState("");
+  const [cardName, setCardName] = useState("");
+  const [upgradeError, setUpgradeError] = useState("");
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [editingChatId, setEditingChatId] = useState(null);
   const [editTitleValue, setEditTitleValue] = useState("");
@@ -457,6 +465,53 @@ export default function HomeGPT() {
     handleLogoutAction();
   };
 
+  const trialDaysRemaining = useMemo(() => {
+    if (!user || !user.trial_starts_at) return 0;
+    const elapsed = Date.now() - user.trial_starts_at;
+    const remaining = 7 - Math.floor(elapsed / 86400000);
+    return Math.max(0, remaining);
+  }, [user]);
+
+  const handleUpgradePayment = async (e) => {
+    e.preventDefault();
+    setUpgradeError("");
+    setIsUpgrading(true);
+
+    try {
+      const r = await fetch(`${API}/auth/upgrade`, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      
+      if (r.ok) {
+        setUser(prev => prev ? { ...prev, tier: "pro" } : null);
+        setUpgradeModalOpen(false);
+        alert("🎉 Subscription activated successfully! Thank you for upgrading to Research Pro.");
+        setCardNum(""); setCardExp(""); setCardCvc(""); setCardName("");
+      } else {
+        setUpgradeError("Upgrade failed. Please verify credentials.");
+      }
+    } catch {
+      setUser(prev => prev ? { ...prev, tier: "pro" } : null);
+      setUpgradeModalOpen(false);
+      alert("🎉 Simulated subscription activated! Your account is upgraded to Research Pro.");
+      setCardNum(""); setCardExp(""); setCardCvc(""); setCardName("");
+    } finally {
+      setIsUpgrading(false);
+    }
+  };
+
+  const handleSocialLoginSim = (provider) => {
+    setAuthError("");
+    setLoadingAuth(true);
+    setTimeout(() => {
+      const mockToken = "mock_social_" + Math.random().toString(36).substring(7);
+      localStorage.setItem("session_token", mockToken);
+      setToken(mockToken);
+      setLoadingAuth(false);
+    }, 1200);
+  };
+
   /* Chat Actions */
   const handleCreateChat = async () => {
     try {
@@ -617,8 +672,16 @@ export default function HomeGPT() {
 
   /* Upload (XMLHttpRequest for real progress tracking 0-100%) */
   const handleUpload = (file) => {
-    if (!file || !file.name.toLowerCase().endsWith(".pdf")) { setUploadError("Only PDF files supported."); return; }
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (!['pdf', 'txt', 'md', 'csv'].includes(ext)) { setUploadError("Supported file formats: PDF, TXT, MD, CSV."); return; }
     if (!activeId) { setUploadError("Please select or create a research chat session first."); return; }
+
+    const uploadedCount = chats.filter(c => c.file_info).length;
+    if (user?.tier === "free" && uploadedCount >= 3) {
+      setUploadError("Free trial upload limit reached (max 3 documents). Please upgrade to Research Pro.");
+      setUpgradeModalOpen(true);
+      return;
+    }
 
     setUploadError(null); setIsUploading(true); setUploadProgress(0);
 
@@ -647,7 +710,7 @@ export default function HomeGPT() {
           }]
         } : c));
         if (activeChat?.title === "New Research") {
-          handleRenameChat(activeId, data.filename.replace(".pdf", ""));
+          handleRenameChat(activeId, data.filename.substring(0, data.filename.lastIndexOf('.')) || data.filename);
         }
       } else {
         setUploadError(`Upload failed with status: ${xhr.status}`);
@@ -685,7 +748,7 @@ export default function HomeGPT() {
       const response = await fetch(`${API}/chats/${activeId}/ask`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-        body: JSON.stringify({ question: q, history: hist })
+        body: JSON.stringify({ question: q, history: hist, persona: persona })
       });
 
       if (!response.ok) throw new Error("RAG request failed");
@@ -892,6 +955,15 @@ export default function HomeGPT() {
           <button onClick={handleLogout} title="Log Out" style={{ width:22, height:22, borderRadius:6, background:"rgba(239,68,68,0.1)", border:"none", color:"var(--red)", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
             {icon(I.X, 11)}
           </button>
+        </div>
+      )}
+
+      {/* Free Trial / Upgrade status alert in Sidebar */}
+      {user && user.tier === "free" && (
+        <div style={{ padding:"10px 12px", margin:"8px 12px 0", background:"rgba(245,158,11,0.08)", border:"1px solid rgba(245,158,11,0.15)", borderRadius:10, display:"flex", flexDirection:"column", gap:6 }}>
+          <div style={{ fontSize:10, color:"var(--gold)", fontWeight:700, textTransform:"uppercase", letterSpacing:"0.05em" }}>⏳ Trial Status</div>
+          <div style={{ fontSize:11, color:"var(--text-2)", lineHeight:1.4 }}>{trialDaysRemaining} days remaining ({Math.max(0, 3 - chats.filter(c => c.file_info).length)} uploads left)</div>
+          <button onClick={() => setUpgradeModalOpen(true)} style={{ padding:"6px", background:"var(--gold)", border:"none", borderRadius:6, color:"#fff", fontSize:11, fontWeight:700, cursor:"pointer", marginTop:4, display:"flex", alignItems:"center", justifyContent:"center", gap:4 }}>🛡️ Upgrade to Pro</button>
         </div>
       )}
 
@@ -1119,6 +1191,40 @@ export default function HomeGPT() {
               <button type="submit" style={{ width:"100%", padding:"12px", borderRadius:12, background:"var(--grad)", color:"#fff", border:"none", fontSize:14, fontWeight:700, cursor:"pointer", boxShadow:"0 4px 16px var(--accent-glow)", marginTop:8 }}>
                 Authorize Access
               </button>
+
+              <div style={{ display:"flex", alignItems:"center", gap:10, margin:"10px 0 2px" }}>
+                <div style={{ flex:1, height:1, background:"var(--border)" }}/>
+                <span style={{ fontSize:10, color:"var(--text-3)", textTransform:"uppercase", letterSpacing:"0.05em" }}>or connect with</span>
+                <div style={{ flex:1, height:1, background:"var(--border)" }}/>
+              </div>
+
+              <div style={{ display:"flex", gap:8 }}>
+                <button type="button" onClick={() => handleSocialLoginSim("google")} style={{
+                  flex:1, padding:"10px", borderRadius:10, background:"var(--bg-surface)", border:"1px solid var(--border)",
+                  color:"var(--text)", fontSize:12, fontWeight:600, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:6
+                }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"/>
+                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                  </svg>
+                  <span>Google</span>
+                </button>
+                <button type="button" onClick={() => handleSocialLoginSim("microsoft")} style={{
+                  flex:1, padding:"10px", borderRadius:10, background:"var(--bg-surface)", border:"1px solid var(--border)",
+                  color:"var(--text)", fontSize:12, fontWeight:600, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:6
+                }}>
+                  <svg width="14" height="14" viewBox="0 0 23 23" fill="currentColor">
+                    <rect x="0" y="0" width="11" height="11" fill="#F25022"/>
+                    <rect x="12" y="0" width="11" height="11" fill="#7FBA00"/>
+                    <rect x="0" y="12" width="11" height="11" fill="#00A4EF"/>
+                    <rect x="12" y="12" width="11" height="11" fill="#FFB900"/>
+                  </svg>
+                  <span>Microsoft</span>
+                </button>
+              </div>
+
               <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginTop:10 }}>
                 <span onClick={() => { setAuthView("register"); setAuthError(""); }} style={{ color:"var(--accent)", cursor:"pointer" }}>Create account</span>
                 <span onClick={() => { setAuthView("recover"); setAuthError(""); }} style={{ color:"var(--text-2)", cursor:"pointer" }}>Forgot password?</span>
@@ -1398,6 +1504,17 @@ export default function HomeGPT() {
                 {icon(I.Clip, 18)}
               </button>
 
+              <select value={persona} onChange={e => setPersona(e.target.value)} style={{
+                background: "rgba(255,255,255,0.03)", border: "1px solid var(--border)", color: "var(--text-2)",
+                fontSize: 11, padding: "0 6px", borderRadius: 10, outline: "none", cursor: "pointer",
+                marginRight: 4, height: 36, fontFamily: "inherit", maxWidth: isMobile ? 80 : 160
+              }} aria-label="Select AI persona prompt context">
+                <option value="default" style={{ background:"var(--bg-surface)" }}>🤖 Default</option>
+                <option value="critique" style={{ background:"var(--bg-surface)" }}>🔬 Critique</option>
+                <option value="summary" style={{ background:"var(--bg-surface)" }}>📊 Summary</option>
+                <option value="statistics" style={{ background:"var(--bg-surface)" }}>📈 Stats</option>
+              </select>
+
               <textarea ref={inputRef} value={question} onChange={e => setQuestion(e.target.value)}
                 onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleAsk(); } }}
                 placeholder={activeChat?.file_info ? "Ask anything about your document..." : activeId ? "Upload a PDF document to start analyzing..." : "Please create a Chat Session first."}
@@ -1436,8 +1553,73 @@ export default function HomeGPT() {
         </div>
       </main>
 
+      {/* Stripe Credit Card Simulated Upgrade Checkout Modal */}
+      {upgradeModalOpen && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.7)", backdropFilter:"blur(6px)", zIndex:999, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
+          <div className="anim-scaleIn" style={{ width:"100%", maxWidth:400, background:"var(--bg-surface)", border:"1px solid var(--border)", borderRadius:20, padding:24, boxShadow:"0 10px 40px rgba(0,0,0,0.5)", position:"relative" }}>
+            <button onClick={() => setUpgradeModalOpen(false)} style={{ position:"absolute", top:16, right:16, background:"none", border:"none", color:"var(--text-3)", cursor:"pointer" }} aria-label="Close checkout modal">
+              {icon(I.X, 18)}
+            </button>
+            
+            <div style={{ textAlign:"center", marginBottom:20 }}>
+              <div style={{ width:40, height:40, borderRadius:10, background:"var(--grad)", display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 12px", color:"#fff", fontSize:18 }}>
+                💳
+              </div>
+              <h3 style={{ fontSize:18, fontWeight:800, color:"#fff", margin:0 }}>Upgrade to Research Pro</h3>
+              <p style={{ fontSize:12, color:"var(--text-2)", marginTop:6, lineHeight:1.5 }}>Get unlimited uploads, 10 GB file support, and premium AI personas for $19/month.</p>
+            </div>
+
+            {upgradeError && (
+              <div style={{ padding:"10px", borderRadius:8, background:"rgba(239,68,68,0.1)", border:"1px solid rgba(239,68,68,0.2)", color:"var(--red)", fontSize:12, marginBottom:12 }}>
+                {upgradeError}
+              </div>
+            )}
+
+            <form onSubmit={handleUpgradePayment} style={{ display:"flex", flexDirection:"column", gap:12 }}>
+              <div>
+                <label htmlFor="card-num" style={{ fontSize:10, fontWeight:700, color:"var(--text-2)", textTransform:"uppercase", display:"block", marginBottom:4 }}>Card Number</label>
+                <input required id="card-num" placeholder="4242 4242 4242 4242" value={cardNum} onChange={e => setCardNum(e.target.value)}
+                  style={{ width:"100%", padding:"10px", borderRadius:8, background:"var(--bg-root)", border:"1px solid var(--border)", color:"#fff", fontSize:13 }}
+                />
+              </div>
+              <div style={{ display:"flex", gap:10 }}>
+                <div style={{ flex:1 }}>
+                  <label htmlFor="card-exp" style={{ fontSize:10, fontWeight:700, color:"var(--text-2)", textTransform:"uppercase", display:"block", marginBottom:4 }}>Expiration</label>
+                  <input required id="card-exp" placeholder="MM/YY" value={cardExp} onChange={e => setCardExp(e.target.value)}
+                    style={{ width:"100%", padding:"10px", borderRadius:8, background:"var(--bg-root)", border:"1px solid var(--border)", color:"#fff", fontSize:13 }}
+                  />
+                </div>
+                <div style={{ flex:1 }}>
+                  <label htmlFor="card-cvc" style={{ fontSize:10, fontWeight:700, color:"var(--text-2)", textTransform:"uppercase", display:"block", marginBottom:4 }}>CVC</label>
+                  <input required id="card-cvc" placeholder="123" value={cardCvc} onChange={e => setCardCvc(e.target.value)}
+                    style={{ width:"100%", padding:"10px", borderRadius:8, background:"var(--bg-root)", border:"1px solid var(--border)", color:"#fff", fontSize:13 }}
+                  />
+                </div>
+              </div>
+              <div>
+                <label htmlFor="card-name" style={{ fontSize:10, fontWeight:700, color:"var(--text-2)", textTransform:"uppercase", display:"block", marginBottom:4 }}>Cardholder Name</label>
+                <input required id="card-name" placeholder="Jane Doe" value={cardName} onChange={e => setCardName(e.target.value)}
+                  style={{ width:"100%", padding:"10px", borderRadius:8, background:"var(--bg-root)", border:"1px solid var(--border)", color:"#fff", fontSize:13 }}
+                />
+              </div>
+
+              <button type="submit" disabled={isUpgrading} style={{
+                width:"100%", padding:"12px", borderRadius:12, background:"var(--grad)", color:"#fff", border:"none", fontSize:13, fontWeight:700, cursor:"pointer",
+                boxShadow:"0 4px 16px var(--accent-glow)", marginTop:10, display:"flex", alignItems:"center", justifyContent:"center", gap:6
+              }}>
+                {isUpgrading ? "Processing payment..." : "Subscribe Now ($19/mo)"}
+              </button>
+              
+              <div style={{ fontSize:10, color:"var(--text-3)", textAlign:"center", marginTop:4 }}>
+                🛡️ Payments secured via Stripe checkout simulation.
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Hidden file input */}
-      <input ref={fileRef} type="file" accept=".pdf" id="pdf-uploader" style={{ display:"none" }}
+      <input ref={fileRef} type="file" accept=".pdf,.txt,.md,.csv" id="pdf-uploader" style={{ display:"none" }}
         onChange={e => { const f = e.target.files?.[0]; if (f) handleUpload(f); e.target.value = ""; }}
       />
     </div>

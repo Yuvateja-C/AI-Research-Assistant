@@ -50,11 +50,19 @@ Answer:
 
     return response.choices[0].message.content
 
-def generate_answer_stream(context, question):
+def generate_answer_stream(context, question, persona="default"):
+    # Persona customized system instruction
+    system_instruction = "Answer the question using the provided context."
+    if persona == "critique":
+        system_instruction = "Analyze and critique the academic methodology, logic, and experimental design in the provided context."
+    elif persona == "summary":
+        system_instruction = "Provide a clear, high-level business executive summary focusing on impact, outcomes, and key takeaways."
+    elif persona == "statistics":
+        system_instruction = "Extract, catalog, and list all statistical data, quantitative findings, and performance metrics in the context."
+
     prompt = f"""
 You are an AI Research Assistant.
-
-Answer the question using the provided context.
+Persona instruction: {system_instruction}
 
 Context:
 {context}
