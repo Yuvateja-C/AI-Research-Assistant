@@ -4,7 +4,7 @@ import jsPDF from "jspdf";
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 /*  CONSTANTS & HELPERS                         */
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
-const API = (import.meta.env.VITE_API_URL || "http://127.0.0.1:8000").replace(/\/+$/, "");
+const API = (import.meta.env.VITE_API_URL || "https://api-research-assistant-bseo.onrender.com").replace(/\/+$/, "");
 
 const relativeTime = (ts) => {
   if (!ts) return "";
@@ -1556,6 +1556,41 @@ export default function HomeGPT() {
               </div>
             )}
 
+            {activePage === "refund" && (
+              <div className="anim-scaleIn" style={{ padding:"24px 0", color:"var(--text-2)" }}>
+                <h2 style={{ color:"var(--text)", marginBottom:16 }}>Cancellation & Refund Policy</h2>
+                <p style={{ marginBottom:14 }}>Effective Date: June 27, 2026</p>
+                <p style={{ marginBottom:14 }}>Thank you for choosing ResearchAI. We want you to be completely satisfied with your premium experience.</p>
+                <h3 style={{ color:"var(--text)", marginTop:20, marginBottom:8 }}>1. Trial Period & Cancellations</h3>
+                <p style={{ marginBottom:14 }}>You can cancel your subscription at any time directly through your billing portal. Your Pro features will remain active until the end of your billing cycle.</p>
+                <h3 style={{ color:"var(--text)", marginTop:20, marginBottom:8 }}>2. Refunds Eligibility</h3>
+                <p style={{ marginBottom:14 }}>Due to API consumption costs, we generally do not offer refunds once the vector database and Groq LLM processing services have been actively queried. However, if you experience technical issues, contact our support team within 48 hours for review.</p>
+                <button onClick={() => setActivePage("workspace")} style={{ padding:"10px 20px", marginTop:24, borderRadius:8, background:"var(--grad)", border:"none", color:"#fff", fontWeight:"bold", cursor:"pointer" }}>Back to Workspace</button>
+              </div>
+            )}
+
+            {activePage === "contact" && (
+              <div className="anim-scaleIn" style={{ padding:"24px 0", color:"var(--text-2)" }}>
+                <h2 style={{ color:"var(--text)", marginBottom:16 }}>Contact Us</h2>
+                <p style={{ marginBottom:14 }}>Have questions or need technical support? We are here to help you.</p>
+                <div style={{ background:"rgba(255,255,255,0.02)", padding:18, borderRadius:12, border:"1px solid var(--border)", display:"flex", flexDirection:"column", gap:12 }}>
+                  <div>
+                    <strong style={{ color:"#fff" }}>📧 Email Support:</strong>
+                    <div style={{ color:"var(--accent)", marginTop:4 }}>support@researchai.com</div>
+                  </div>
+                  <div>
+                    <strong style={{ color:"#fff" }}>📍 Office Address:</strong>
+                    <div style={{ marginTop:4 }}>ResearchAI Tech Hub, Hyderabad, Telangana, India</div>
+                  </div>
+                  <div>
+                    <strong style={{ color:"#fff" }}>📞 Business Hours:</strong>
+                    <div style={{ marginTop:4 }}>Monday - Friday: 9:00 AM - 6:00 PM IST</div>
+                  </div>
+                </div>
+                <button onClick={() => setActivePage("workspace")} style={{ padding:"10px 20px", marginTop:24, borderRadius:8, background:"var(--grad)", border:"none", color:"#fff", fontWeight:"bold", cursor:"pointer" }}>Back to Workspace</button>
+              </div>
+            )}
+
           </div>
         </div>
 
@@ -1650,6 +1685,10 @@ export default function HomeGPT() {
             <span onClick={() => setActivePage("privacy")} style={{ fontSize:11, color:"var(--accent)", cursor:"pointer", textDecoration:"underline" }}>Privacy Policy</span>
             <span style={{ color:"var(--text-3)" }}>·</span>
             <span onClick={() => setActivePage("terms")} style={{ fontSize:11, color:"var(--accent)", cursor:"pointer", textDecoration:"underline" }}>Terms of Service</span>
+            <span style={{ color:"var(--text-3)" }}>·</span>
+            <span onClick={() => setActivePage("refund")} style={{ fontSize:11, color:"var(--accent)", cursor:"pointer", textDecoration:"underline" }}>Refund Policy</span>
+            <span style={{ color:"var(--text-3)" }}>·</span>
+            <span onClick={() => setActivePage("contact")} style={{ fontSize:11, color:"var(--accent)", cursor:"pointer", textDecoration:"underline" }}>Contact Us</span>
           </footer>
         </div>
       </main>
