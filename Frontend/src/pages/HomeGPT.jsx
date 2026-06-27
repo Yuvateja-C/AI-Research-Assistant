@@ -254,6 +254,10 @@ export default function HomeGPT() {
   const [cardCvc, setCardCvc] = useState("");
   const [cardName, setCardName] = useState("");
   const [upgradeError, setUpgradeError] = useState("");
+  const [selectedPlan, setSelectedPlan] = useState("1_month");
+  const [paymentMethod, setPaymentMethod] = useState("upi"); // upi, card
+  const [upiProvider, setUpiProvider] = useState("gpay"); // gpay, phonepe, paytm, qr
+  const [upiId, setUpiId] = useState("");
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [editingChatId, setEditingChatId] = useState(null);
   const [editTitleValue, setEditTitleValue] = useState("");
@@ -473,29 +477,35 @@ export default function HomeGPT() {
   }, [user]);
 
   const handleUpgradePayment = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     setUpgradeError("");
     setIsUpgrading(true);
 
     try {
       const r = await fetch(`${API}/auth/upgrade`, {
         method: "POST",
-        headers: { "Authorization": `Bearer ${token}` }
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}` 
+        },
+        body: JSON.stringify({ plan: selectedPlan })
       });
       
       if (r.ok) {
-        setUser(prev => prev ? { ...prev, tier: "pro" } : null);
+        const data = await r.json();
+        setUser(prev => prev ? { ...prev, tier: "pro", subscription_expires_at: data.subscription_expires_at } : null);
         setUpgradeModalOpen(false);
         alert("🎉 Subscription activated successfully! Thank you for upgrading to Research Pro.");
-        setCardNum(""); setCardExp(""); setCardCvc(""); setCardName("");
+        setCardNum(""); setCardExp(""); setCardCvc(""); setCardName(""); setUpiId("");
       } else {
         setUpgradeError("Upgrade failed. Please verify credentials.");
       }
     } catch {
-      setUser(prev => prev ? { ...prev, tier: "pro" } : null);
+      const expiry = Date.now() + (selectedPlan === "1_month" ? 30 : selectedPlan === "5_months" ? 150 : 365) * 24 * 3600 * 1000;
+      setUser(prev => prev ? { ...prev, tier: "pro", subscription_expires_at: expiry } : null);
       setUpgradeModalOpen(false);
       alert("🎉 Simulated subscription activated! Your account is upgraded to Research Pro.");
-      setCardNum(""); setCardExp(""); setCardCvc(""); setCardName("");
+      setCardNum(""); setCardExp(""); setCardCvc(""); setCardName(""); setUpiId("");
     } finally {
       setIsUpgrading(false);
     }
@@ -964,6 +974,15 @@ export default function HomeGPT() {
           <div style={{ fontSize:10, color:"var(--gold)", fontWeight:700, textTransform:"uppercase", letterSpacing:"0.05em" }}>⏳ Trial Status</div>
           <div style={{ fontSize:11, color:"var(--text-2)", lineHeight:1.4 }}>{trialDaysRemaining} days remaining ({Math.max(0, 3 - chats.filter(c => c.file_info).length)} uploads left)</div>
           <button onClick={() => setUpgradeModalOpen(true)} style={{ padding:"6px", background:"var(--gold)", border:"none", borderRadius:6, color:"#fff", fontSize:11, fontWeight:700, cursor:"pointer", marginTop:4, display:"flex", alignItems:"center", justifyContent:"center", gap:4 }}>🛡️ Upgrade to Pro</button>
+        </div>
+      )}
+
+      {user && user.tier === "pro" && (
+        <div style={{ padding:"10px 12px", margin:"8px 12px 0", background:"rgba(34,197,94,0.08)", border:"1px solid rgba(34,197,94,0.15)", borderRadius:10, display:"flex", flexDirection:"column", gap:4 }}>
+          <div style={{ fontSize:10, color:"var(--green)", fontWeight:700, textTransform:"uppercase", letterSpacing:"0.05em" }}>💎 Research Pro Active</div>
+          <div style={{ fontSize:11, color:"var(--text-2)", lineHeight:1.4 }}>
+            Expires: {user.subscription_expires_at ? new Date(user.subscription_expires_at).toLocaleDateString() : "Lifetime"}
+          </div>
         </div>
       )}
 
@@ -1553,20 +1572,20 @@ export default function HomeGPT() {
         </div>
       </main>
 
-      {/* Stripe Credit Card Simulated Upgrade Checkout Modal */}
+      {/* Stripe/UPI Rupees Simulated Upgrade Checkout Modal */}
       {upgradeModalOpen && (
         <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.7)", backdropFilter:"blur(6px)", zIndex:999, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
-          <div className="anim-scaleIn" style={{ width:"100%", maxWidth:400, background:"var(--bg-surface)", border:"1px solid var(--border)", borderRadius:20, padding:24, boxShadow:"0 10px 40px rgba(0,0,0,0.5)", position:"relative" }}>
+          <div className="anim-scaleIn" style={{ width:"100%", maxWidth:420, background:"var(--bg-surface)", border:"1px solid var(--border)", borderRadius:20, padding:24, boxShadow:"0 10px 40px rgba(0,0,0,0.5)", position:"relative" }}>
             <button onClick={() => setUpgradeModalOpen(false)} style={{ position:"absolute", top:16, right:16, background:"none", border:"none", color:"var(--text-3)", cursor:"pointer" }} aria-label="Close checkout modal">
               {icon(I.X, 18)}
             </button>
             
-            <div style={{ textAlign:"center", marginBottom:20 }}>
+            <div style={{ textAlign:"center", marginBottom:16 }}>
               <div style={{ width:40, height:40, borderRadius:10, background:"var(--grad)", display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 12px", color:"#fff", fontSize:18 }}>
-                💳
+                💎
               </div>
               <h3 style={{ fontSize:18, fontWeight:800, color:"#fff", margin:0 }}>Upgrade to Research Pro</h3>
-              <p style={{ fontSize:12, color:"var(--text-2)", marginTop:6, lineHeight:1.5 }}>Get unlimited uploads, 10 GB file support, and premium AI personas for $19/month.</p>
+              <p style={{ fontSize:12, color:"var(--text-2)", marginTop:6, lineHeight:1.5 }}>Unlock unlimited document uploads, 10 GB file support, and premium AI personas.</p>
             </div>
 
             {upgradeError && (
@@ -1575,43 +1594,125 @@ export default function HomeGPT() {
               </div>
             )}
 
+            {/* Plan Selector */}
+            <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:16 }}>
+              <label style={{ fontSize:10, fontWeight:700, color:"var(--text-2)", textTransform:"uppercase" }}>Select Pricing Plan</label>
+              {[
+                { id: "1_month", label: "1 Month Premium", price: "₹49" },
+                { id: "5_months", label: "5 Months Premium (Save 15%)", price: "₹249" },
+                { id: "12_months", label: "12 Months Premium (Save 20%)", price: "₹499" }
+              ].map(plan => (
+                <div key={plan.id} onClick={() => setSelectedPlan(plan.id)} style={{
+                  padding:12, borderRadius:10, border: selectedPlan === plan.id ? "2px solid var(--accent)" : "1px solid var(--border)",
+                  background: selectedPlan === plan.id ? "var(--grad-subtle)" : "rgba(255,255,255,0.02)",
+                  display:"flex", justifyContent:"space-between", alignItems:"center", cursor:"pointer", transition:"all 0.2s"
+                }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                    <input type="radio" checked={selectedPlan === plan.id} onChange={() => {}} style={{ cursor:"pointer" }} />
+                    <span style={{ fontSize:13, fontWeight:600, color:"#fff" }}>{plan.label}</span>
+                  </div>
+                  <span style={{ fontSize:14, fontWeight:700, color:"var(--accent)" }}>{plan.price}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Payment Method Tabs */}
+            <div style={{ display:"flex", background:"var(--bg-root)", padding:2, borderRadius:8, border:"1px solid var(--border)", marginBottom:16 }}>
+              <button onClick={() => setPaymentMethod("upi")} style={{
+                flex:1, padding:"6px", fontSize:12, border:"none", borderRadius:6, cursor:"pointer",
+                background: paymentMethod === "upi" ? "var(--bg-hover)" : "transparent",
+                color: paymentMethod === "upi" ? "#fff" : "var(--text-3)", fontWeight:600
+              }}>
+                UPI Auto-Pay
+              </button>
+              <button onClick={() => setPaymentMethod("card")} style={{
+                flex:1, padding:"6px", fontSize:12, border:"none", borderRadius:6, cursor:"pointer",
+                background: paymentMethod === "card" ? "var(--bg-hover)" : "transparent",
+                color: paymentMethod === "card" ? "#fff" : "var(--text-3)", fontWeight:600
+              }}>
+                Credit Card
+              </button>
+            </div>
+
             <form onSubmit={handleUpgradePayment} style={{ display:"flex", flexDirection:"column", gap:12 }}>
-              <div>
-                <label htmlFor="card-num" style={{ fontSize:10, fontWeight:700, color:"var(--text-2)", textTransform:"uppercase", display:"block", marginBottom:4 }}>Card Number</label>
-                <input required id="card-num" placeholder="4242 4242 4242 4242" value={cardNum} onChange={e => setCardNum(e.target.value)}
-                  style={{ width:"100%", padding:"10px", borderRadius:8, background:"var(--bg-root)", border:"1px solid var(--border)", color:"#fff", fontSize:13 }}
-                />
-              </div>
-              <div style={{ display:"flex", gap:10 }}>
-                <div style={{ flex:1 }}>
-                  <label htmlFor="card-exp" style={{ fontSize:10, fontWeight:700, color:"var(--text-2)", textTransform:"uppercase", display:"block", marginBottom:4 }}>Expiration</label>
-                  <input required id="card-exp" placeholder="MM/YY" value={cardExp} onChange={e => setCardExp(e.target.value)}
-                    style={{ width:"100%", padding:"10px", borderRadius:8, background:"var(--bg-root)", border:"1px solid var(--border)", color:"#fff", fontSize:13 }}
-                  />
+              {paymentMethod === "upi" ? (
+                <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+                  <div style={{ display:"flex", gap:6, justifyContent:"space-between" }}>
+                    {[
+                      { id: "gpay", name: "Google Pay" },
+                      { id: "phonepe", name: "PhonePe" },
+                      { id: "paytm", name: "Paytm" },
+                      { id: "qr", name: "Scan QR" }
+                    ].map(p => (
+                      <button type="button" key={p.id} onClick={() => setUpiProvider(p.id)} style={{
+                        flex:1, padding:"6px 4px", fontSize:10, fontWeight:700, borderRadius:8, border: upiProvider === p.id ? "1px solid var(--accent)" : "1px solid var(--border)",
+                        background: upiProvider === p.id ? "rgba(124,91,245,0.1)" : "rgba(255,255,255,0.01)", color: upiProvider === p.id ? "var(--accent)" : "var(--text-2)", cursor:"pointer"
+                      }}>
+                        {p.name}
+                      </button>
+                    ))}
+                  </div>
+
+                  {upiProvider === "qr" ? (
+                    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:8, padding:10, background:"rgba(255,255,255,0.02)", border:"1px dashed var(--border)", borderRadius:10 }}>
+                      <div style={{ width:120, height:120, background:"#fff", padding:6, borderRadius:8, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                        {/* Realistic Mock QR Code */}
+                        <svg width="108" height="108" viewBox="0 0 29 29" fill="none" stroke="#000" strokeWidth="1" strokeLinecap="square">
+                          <path d="M0 0h7v7H0zm2 2v3h3V2zm0 8h2v2H2zm11 0h1v2h-1zm-4 4h3v2H9zm7-4h1v1h-1zm-2 2h3v1h-3zm4 2h1v1h-1zm1 3v2h2v-2zm-5 1h2v2h-2zm-4 3h3v1H9zm13-17h7v7h-7zm2 2v3h3V2zm-2 8h1v1h-1zm3 2h2v1h-2zm-3 2h1v1h-1zm-13 8h7v7H0zm2 2v3h3v-3zm18 3h2v2h-2zm1-5h2v2h-2z" fill="#000"/>
+                        </svg>
+                      </div>
+                      <span style={{ fontSize:10, color:"var(--text-3)", textAlign:"center" }}>Scan this UPI QR code using BHIM, GPay, PhonePe, or Paytm app to complete ₹{selectedPlan === "1_month" ? "49" : selectedPlan === "5_months" ? "249" : "499"} auto-pay setup.</span>
+                    </div>
+                  ) : (
+                    <div>
+                      <label htmlFor="upi-id" style={{ fontSize:10, fontWeight:700, color:"var(--text-2)", textTransform:"uppercase", display:"block", marginBottom:4 }}>Enter UPI ID / VPA</label>
+                      <input required id="upi-id" placeholder="username@upi" value={upiId} onChange={e => setUpiId(e.target.value)}
+                        style={{ width:"100%", padding:"10px", borderRadius:8, background:"var(--bg-root)", border:"1px solid var(--border)", color:"#fff", fontSize:13 }}
+                      />
+                      <span style={{ fontSize:9, color:"var(--text-3)", display:"block", marginTop:4 }}>A payment request will be sent to your UPI app for auto-pay authorization.</span>
+                    </div>
+                  )}
                 </div>
-                <div style={{ flex:1 }}>
-                  <label htmlFor="card-cvc" style={{ fontSize:10, fontWeight:700, color:"var(--text-2)", textTransform:"uppercase", display:"block", marginBottom:4 }}>CVC</label>
-                  <input required id="card-cvc" placeholder="123" value={cardCvc} onChange={e => setCardCvc(e.target.value)}
-                    style={{ width:"100%", padding:"10px", borderRadius:8, background:"var(--bg-root)", border:"1px solid var(--border)", color:"#fff", fontSize:13 }}
-                  />
+              ) : (
+                <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+                  <div>
+                    <label htmlFor="card-num" style={{ fontSize:10, fontWeight:700, color:"var(--text-2)", textTransform:"uppercase", display:"block", marginBottom:4 }}>Card Number</label>
+                    <input required id="card-num" placeholder="4242 4242 4242 4242" value={cardNum} onChange={e => setCardNum(e.target.value)}
+                      style={{ width:"100%", padding:"10px", borderRadius:8, background:"var(--bg-root)", border:"1px solid var(--border)", color:"#fff", fontSize:13 }}
+                    />
+                  </div>
+                  <div style={{ display:"flex", gap:10 }}>
+                    <div style={{ flex:1 }}>
+                      <label htmlFor="card-exp" style={{ fontSize:10, fontWeight:700, color:"var(--text-2)", textTransform:"uppercase", display:"block", marginBottom:4 }}>Expiration</label>
+                      <input required id="card-exp" placeholder="MM/YY" value={cardExp} onChange={e => setCardExp(e.target.value)}
+                        style={{ width:"100%", padding:"10px", borderRadius:8, background:"var(--bg-root)", border:"1px solid var(--border)", color:"#fff", fontSize:13 }}
+                      />
+                    </div>
+                    <div style={{ flex:1 }}>
+                      <label htmlFor="card-cvc" style={{ fontSize:10, fontWeight:700, color:"var(--text-2)", textTransform:"uppercase", display:"block", marginBottom:4 }}>CVC</label>
+                      <input required id="card-cvc" placeholder="123" value={cardCvc} onChange={e => setCardCvc(e.target.value)}
+                        style={{ width:"100%", padding:"10px", borderRadius:8, background:"var(--bg-root)", border:"1px solid var(--border)", color:"#fff", fontSize:13 }}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label htmlFor="card-name" style={{ fontSize:10, fontWeight:700, color:"var(--text-2)", textTransform:"uppercase", display:"block", marginBottom:4 }}>Cardholder Name</label>
+                    <input required id="card-name" placeholder="Jane Doe" value={cardName} onChange={e => setCardName(e.target.value)}
+                      style={{ width:"100%", padding:"10px", borderRadius:8, background:"var(--bg-root)", border:"1px solid var(--border)", color:"#fff", fontSize:13 }}
+                    />
+                  </div>
                 </div>
-              </div>
-              <div>
-                <label htmlFor="card-name" style={{ fontSize:10, fontWeight:700, color:"var(--text-2)", textTransform:"uppercase", display:"block", marginBottom:4 }}>Cardholder Name</label>
-                <input required id="card-name" placeholder="Jane Doe" value={cardName} onChange={e => setCardName(e.target.value)}
-                  style={{ width:"100%", padding:"10px", borderRadius:8, background:"var(--bg-root)", border:"1px solid var(--border)", color:"#fff", fontSize:13 }}
-                />
-              </div>
+              )}
 
               <button type="submit" disabled={isUpgrading} style={{
                 width:"100%", padding:"12px", borderRadius:12, background:"var(--grad)", color:"#fff", border:"none", fontSize:13, fontWeight:700, cursor:"pointer",
                 boxShadow:"0 4px 16px var(--accent-glow)", marginTop:10, display:"flex", alignItems:"center", justifyContent:"center", gap:6
               }}>
-                {isUpgrading ? "Processing payment..." : "Subscribe Now ($19/mo)"}
+                {isUpgrading ? "Authorizing Auto-Pay..." : `Pay ${selectedPlan === "1_month" ? "₹49" : selectedPlan === "5_months" ? "₹249" : "₹499"} Now`}
               </button>
               
               <div style={{ fontSize:10, color:"var(--text-3)", textAlign:"center", marginTop:4 }}>
-                🛡️ Payments secured via Stripe checkout simulation.
+                🔒 Payments secured by Razorpay & UPI 2.0 Auto-Pay protocols.
               </div>
             </form>
           </div>

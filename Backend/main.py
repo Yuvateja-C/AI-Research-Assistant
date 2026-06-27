@@ -69,6 +69,19 @@ async def get_current_user(request: Request):
         raise HTTPException(status_code=401, detail="Session expired or invalid")
     return user
 
+def verify_user_subscription(user: dict) -> dict:
+    tier = user.get("tier", "free")
+    expires_at = user.get("subscription_expires_at")
+    if tier == "pro" and expires_at:
+        if int(time.time() * 1000) > expires_at:
+            conn = get_db()
+            cursor = conn.cursor()
+            cursor.execute("UPDATE users SET tier = 'free' WHERE id = ?", (user["id"],))
+            conn.commit()
+            conn.close()
+            user["tier"] = "free"
+    return user
+
 # ----------------------------
 # Request Schemas
 # ----------------------------
@@ -96,6 +109,9 @@ class ChatUpdateRequest(BaseModel):
     title: str = None
     tags: str = None
     status: str = None
+
+class UpgradeRequest(BaseModel):
+    plan: str
 
 class QuestionRequest(BaseModel):
     question: str
@@ -184,17 +200,29 @@ def check_me(user: dict = Depends(get_current_user)):
         "role": user["role"],
         "is_2fa_enabled": bool(user["is_2fa_enabled"]),
         "tier": user.get("tier", "free"),
-        "trial_starts_at": user.get("trial_starts_at")
+        "trial_starts_at": user.get("trial_starts_at"),
+        "subscription_expires_at": user.get("subscription_expires_at")
     }}
 
 @app.post("/auth/upgrade")
-def upgrade_user_tier(user: dict = Depends(get_current_user)):
+def upgrade_user_tier(data: UpgradeRequest, user: dict = Depends(get_current_user)):
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("UPDATE users SET tier = 'pro' WHERE id = ?", (user["id"],))
+    
+    # Calculate subscription expiration time based on selected plan
+    now = int(time.time() * 1000)
+    months = 1
+    if data.plan == "5_months":
+        months = 5
+    elif data.plan == "12_months":
+        months = 12
+        
+    expiry = now + (months * 30 * 24 * 3600 * 1000)
+    
+    cursor.execute("UPDATE users SET tier = 'pro', subscription_expires_at = ? WHERE id = ?", (expiry, user["id"]))
     conn.commit()
     conn.close()
-    return {"status": "success", "tier": "pro"}
+    return {"status": "success", "tier": "pro", "subscription_expires_at": expiry}
 
 @app.post("/auth/create-checkout-session")
 def create_checkout_session(user: dict = Depends(get_current_user)):
@@ -455,6 +483,7 @@ async def upload_large_pdf(
     chat_id: str,
     user: dict = Depends(get_current_user)
 ):
+    user = verify_user_subscription(user)
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute("SELECT user_id FROM chats WHERE id = ?", (chat_id,))
@@ -568,6 +597,7 @@ async def ask_chat_question(
     data: QuestionRequest,
     user: dict = Depends(get_current_user)
 ):
+    user = verify_user_subscription(user)
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute("SELECT user_id, file_info FROM chats WHERE id = ?", (chat_id,))

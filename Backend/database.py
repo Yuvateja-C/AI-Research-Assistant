@@ -76,6 +76,10 @@ def init_db():
         cursor.execute("ALTER TABLE users ADD COLUMN trial_starts_at INTEGER")
     except sqlite3.OperationalError:
         pass
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN subscription_expires_at INTEGER")
+    except sqlite3.OperationalError:
+        pass
 
     conn.commit()
     conn.close()
