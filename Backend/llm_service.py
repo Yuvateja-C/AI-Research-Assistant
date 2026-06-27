@@ -2,6 +2,7 @@ from urllib import response
 from groq import Groq
 from dotenv import load_dotenv
 import os
+import logging
 
 env_path = os.path.join(
     os.path.dirname(__file__),
@@ -12,9 +13,16 @@ load_dotenv(env_path)
 
 api_key = os.getenv("GROQ_API_KEY")
 
-client = Groq(api_key=api_key)
+client = None
+if api_key:
+    try:
+        client = Groq(api_key=api_key)
+    except Exception as e:
+        logging.error(f"Failed to initialize Groq client: {e}")
 
 def generate_answer(context, question):
+    if not client:
+        return "LLM service is not configured. Please set GROQ_API_KEY in the server environment."
     prompt = f"""
 You are an AI Research Assistant.
 
@@ -51,6 +59,9 @@ Answer:
     return response.choices[0].message.content
 
 def generate_answer_stream(context, question, persona="default"):
+    if not client:
+        yield "LLM service is not configured. Please set GROQ_API_KEY in the server environment."
+        return
     # Persona customized system instruction
     system_instruction = "Answer the question using the provided context."
     if persona == "critique":
