@@ -1,9 +1,9 @@
 fastapi
 uvicorn
 chromadb
-sentence-transformers
 groq
 pypdf
 python-multipart
 python-dotenv
 PyMuPDF
+requests
