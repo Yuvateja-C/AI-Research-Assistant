@@ -856,6 +856,207 @@ export default function HomeGPT() {
   /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
   /*  RENDER AUTH SCREEN                          */
   /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+  const SidebarContent = (
+    <div style={{ display:"flex", flexDirection:"column", height:"100%", background:"var(--bg-sidebar)", position:"relative" }}>
+      {/* Top glow */}
+      <div style={{ position:"absolute", top:0, left:0, right:0, height:100, background:"linear-gradient(180deg, rgba(124,91,245,0.06) 0%, transparent 100%)", pointerEvents:"none" }}/>
+
+      {/* Header */}
+      <div style={{ padding:"18px 16px 14px", borderBottom:"1px solid var(--border)", display:"flex", alignItems:"center", justifyContent:"space-between", position:"relative", zIndex:1 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+          <div style={{ width:34, height:34, borderRadius:10, background:"var(--grad)", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 0 18px var(--accent-glow)" }}>
+            {icon(I.Star, 16)}
+          </div>
+          <div>
+            <div style={{ fontSize:15, fontWeight:800, color:"var(--text)", letterSpacing:"-0.02em" }}>ResearchAI</div>
+            <div style={{ fontSize:9, color:"var(--text-3)", letterSpacing:"0.08em", textTransform:"uppercase" }}>Intelligence Engine</div>
+          </div>
+        </div>
+        {isMobile && (
+          <button onClick={() => setSidebarOpen(false)} style={{ width:32, height:32, borderRadius:8, background:"var(--bg-hover)", border:"none", color:"var(--text-2)", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
+            {icon(I.X, 16)}
+          </button>
+        )}
+      </div>
+
+      {/* User Information */}
+      {user && (
+        <div style={{ padding:"8px 12px", borderBottom:"1px solid var(--border)", display:"flex", alignItems:"center", gap:8 }}>
+          <div style={{ width:26, height:26, borderRadius:"50%", background:"var(--bg-hover)", display:"flex", alignItems:"center", justifyContent:"center", color:"var(--accent)" }}>
+            {icon(I.User, 12)}
+          </div>
+          <div style={{ flex:1, overflow:"hidden" }}>
+            <div style={{ fontSize:12, fontWeight:600, color:"var(--text)", textOverflow:"ellipsis", overflow:"hidden" }}>@{user.username}</div>
+          </div>
+          <button onClick={handleLogout} title="Log Out" style={{ width:22, height:22, borderRadius:6, background:"rgba(239,68,68,0.1)", border:"none", color:"var(--red)", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
+            {icon(I.X, 11)}
+          </button>
+        </div>
+      )}
+
+      {/* New Chat */}
+      <div style={{ padding:"12px 12px 4px" }}>
+        <button onClick={handleCreateChat} style={{
+          width:"100%", padding:"10px 14px", borderRadius:12, border:"1px dashed rgba(124,91,245,0.3)",
+          background:"var(--grad-subtle)", color:"var(--text)", fontSize:13, fontWeight:600,
+          cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8, transition:"all 0.2s",
+        }}
+        onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--accent)"; e.currentTarget.style.boxShadow = "0 0 12px var(--accent-glow)"; }}
+        onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(124,91,245,0.3)"; e.currentTarget.style.boxShadow = "none"; }}
+        >
+          {icon(I.Plus, 15)} New Research
+        </button>
+      </div>
+
+      {/* Filter Options */}
+      <div style={{ padding:"6px 12px", display:"flex", flexDirection:"column", gap:6 }}>
+        {/* Status filters */}
+        <div style={{ display:"flex", background:"var(--bg-surface)", padding:2, borderRadius:8, border:"1px solid var(--border)" }}>
+          {["all", "favorite", "archived"].map(st => (
+            <button key={st} onClick={() => setSelectedStatusFilter(st)} style={{
+              flex:1, padding:"4px 6px", fontSize:11, textTransform:"capitalize", border:"none", borderRadius:6, cursor:"pointer",
+              background: selectedStatusFilter === st ? "var(--bg-hover)" : "transparent",
+              color: selectedStatusFilter === st ? "var(--text)" : "var(--text-3)",
+              fontWeight: selectedStatusFilter === st ? 600 : 500
+            }}>
+              {st}
+            </button>
+          ))}
+        </div>
+
+        {/* Tag Filters */}
+        <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+          <select value={selectedTagFilter} onChange={e => setSelectedTagFilter(e.target.value)} style={{
+            width:"100%", padding:"6px 10px", borderRadius:8, background:"var(--bg-surface)", border:"1px solid var(--border)",
+            color:"var(--text-2)", fontSize:11, outline:"none", cursor:"pointer"
+          }}>
+            {allAvailableTags.map(t => (
+              <option key={t} value={t}>{t}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {/* Search */}
+      <div style={{ padding:"8px 12px" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 12px", borderRadius:10, background:"var(--bg-surface)", border:"1px solid var(--border)" }}>
+          <div style={{ color:"var(--text-3)", flexShrink:0 }}>{icon(I.Search, 14)}</div>
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search chats..."
+            style={{ flex:1, background:"transparent", border:"none", outline:"none", color:"var(--text)", fontSize:13, fontFamily:"inherit" }}
+          />
+        </div>
+      </div>
+
+      {/* Chat List */}
+      <div style={{ flex:1, overflowY:"auto", padding:"4px 8px 8px" }}>
+        {Object.entries(grouped).map(([group, items]) => (
+          <div key={group}>
+            <div style={{ fontSize:10, fontWeight:700, color:"var(--text-3)", letterSpacing:"0.1em", textTransform:"uppercase", padding:"12px 8px 6px" }}>{group}</div>
+            {items.map(c => {
+              const isActive = c.id === activeId;
+              const isFav = c.status === "favorite";
+              const isArchived = c.status === "archived";
+              
+              return (
+                <div key={c.id} style={{ position:"relative", marginBottom:2 }}>
+                  <button onClick={() => { setActiveId(c.id); fetchMessages(c.id, token); if (isMobile) setSidebarOpen(false); }}
+                    style={{
+                      width:"100%", padding:"10px 10px", borderRadius:10, border:"none", textAlign:"left",
+                      background: isActive ? "var(--bg-active)" : "transparent",
+                      borderLeft: isActive ? "2px solid var(--accent)" : "2px solid transparent",
+                      cursor:"pointer", display:"flex", alignItems:"center", gap:10, transition:"all 0.15s"
+                    }}
+                  >
+                    <div style={{ width:28, height:28, borderRadius:8, background: isActive ? "var(--accent)15" : "var(--bg-surface)", display:"flex", alignItems:"center", justifyContent:"center", color: isActive ? "var(--accent)" : "var(--text-3)", flexShrink:0 }}>
+                      {icon(c.file_info ? I.File : I.Doc, 13)}
+                    </div>
+                    <div style={{ flex:1, overflow:"hidden" }}>
+                      {editingChatId === c.id ? (
+                        <input
+                          autoFocus
+                          value={editTitleValue}
+                          onChange={e => setEditTitleValue(e.target.value)}
+                          onBlur={() => handleRenameChat(c.id, editTitleValue)}
+                          onKeyDown={e => { if (e.key === "Enter") handleRenameChat(c.id, editTitleValue); }}
+                          style={{ background:"var(--bg-root)", border:"1px solid var(--accent)", color:"#fff", fontSize:12, padding:"2px 6px", borderRadius:4, width:"95%" }}
+                          onClick={e => e.stopPropagation()}
+                        />
+                      ) : (
+                        <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                          <span style={{ fontSize:13, fontWeight: isActive ? 600 : 500, color: isActive ? "var(--text)" : "var(--text-2)", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
+                            {c.title}
+                          </span>
+                          {isFav && <span style={{ color:"var(--gold)", fontSize:10 }}>★</span>}
+                          {isArchived && <span style={{ color:"var(--text-3)", fontSize:9, background:"var(--bg-surface)", padding:"1px 4px", borderRadius:3 }}>Archived</span>}
+                        </div>
+                      )}
+                      
+                      {/* Tags row */}
+                      {c.tags && c.tags.length > 0 && (
+                        <div style={{ display:"flex", flexWrap:"wrap", gap:3, marginTop:4 }}>
+                          {c.tags.map(t => t && (
+                            <span key={t} style={{ fontSize:9, background:"rgba(124,91,245,0.08)", border:"1px solid rgba(124,91,245,0.15)", color:"var(--accent)", padding:"0px 5px", borderRadius:4, display:"flex", alignItems:"center", gap:2 }}>
+                              {t}
+                              <span onClick={(e) => { e.stopPropagation(); handleRemoveTag(c.id, t); }} style={{ color:"var(--red)", fontWeight:"bold", cursor:"pointer", marginLeft:2 }}>×</span>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:4, flexShrink:0 }}>
+                      <span style={{ fontSize:10, color:"var(--text-3)" }}>{relativeTime(c.updatedAt || c.createdAt)}</span>
+                      
+                      {/* Options */}
+                      <div style={{ display:"flex", gap:3 }}>
+                        <span onClick={(e) => { e.stopPropagation(); setEditingChatId(c.id); setEditTitleValue(c.title); }} title="Rename" style={{ color:"var(--text-3)", cursor:"pointer", padding:2 }}>
+                          {icon(I.Edit, 10)}
+                        </span>
+                        <span onClick={(e) => { e.stopPropagation(); toggleFavorite(c); }} title={isFav ? "Unfavorite" : "Favorite"} style={{ color: isFav ? "var(--gold)" : "var(--text-3)", cursor:"pointer", padding:2 }}>
+                          {icon(I.StarOutline, 10)}
+                        </span>
+                        <span onClick={(e) => { e.stopPropagation(); toggleArchive(c); }} title={isArchived ? "Unarchive" : "Archive"} style={{ color:"var(--text-3)", cursor:"pointer", padding:2 }}>
+                          {icon(I.Archive, 10)}
+                        </span>
+                        <span onClick={(e) => handleDeleteChat(c.id, e)} title="Delete" style={{ color:"var(--red)", cursor:"pointer", padding:2 }}>
+                          {icon(I.Trash, 10)}
+                        </span>
+                      </div>
+                    </div>
+                  </button>
+                  
+                  {/* Inline Tag Adder */}
+                  <div style={{ padding:"0 8px 4px 38px" }}>
+                    {addingTagId === c.id ? (
+                      <div style={{ display:"flex", gap:4, alignItems:"center" }}>
+                        <input value={newTagVal} onChange={e => setNewTagVal(e.target.value)} placeholder="Add tag..."
+                          style={{ background:"var(--bg-root)", border:"1px solid var(--border)", color:"#fff", fontSize:10, padding:"2px 5px", borderRadius:4, width:80 }}
+                        />
+                        <button onClick={() => handleAddTag(c.id)} style={{ padding:"2px 6px", fontSize:9, background:"var(--accent)", color:"#fff", border:"none", borderRadius:3, cursor:"pointer" }}>+</button>
+                        <button onClick={() => setAddingTagId(null)} style={{ padding:"2px 6px", fontSize:9, background:"var(--bg-hover)", color:"var(--text-3)", border:"none", borderRadius:3, cursor:"pointer" }}>×</button>
+                      </div>
+                    ) : (
+                      <span onClick={() => { setAddingTagId(c.id); setNewTagVal(""); }} style={{ fontSize:10, color:"var(--text-3)", cursor:"pointer", textDecoration:"underline" }}>+ add tag</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+
+      {/* Footer */}
+      <div style={{ padding:"12px 16px", borderTop:"1px solid var(--border)", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:7 }}>
+          <div style={{ width:7, height:7, borderRadius:"50%", background:"var(--green)", animation:"pulseGlow 2s ease-in-out infinite" }}/>
+          <span style={{ fontSize:11, color:"var(--text-3)", fontWeight:500 }}>Online</span>
+        </div>
+        <span style={{ fontSize:9, color:"var(--text-3)", fontFamily:"'JetBrains Mono',monospace" }}>v3.0</span>
+      </div>
+    </div>
+  );
+
   if (loadingAuth) {
     return (
       <div style={{ display:"flex", minHeight:"100vh", background:"#0b0b10", alignItems:"center", justifyContent:"center", position:"relative" }}>
