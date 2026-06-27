@@ -1,4 +1,4 @@
-import HomeGPT from "./pages/HomeGPT";
+import HomeGPT from "./HomeGPT";
 
 function App() {
   return <HomeGPT />;

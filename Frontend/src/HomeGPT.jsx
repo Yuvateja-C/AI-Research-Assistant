@@ -1,90 +1,224 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import jsPDF from "jspdf";
 
-/**
- * PRODUCTION-GRADE RESEARCH AI WORKSPACE (CLAUDE-MAX ARCHITECTURE)
- */
-
-const API_URL = import.meta.env.VITE_API_URL;
-const MAX_FILE_MB = 100000;
+const API_URL = (import.meta.env.VITE_API_URL || "http://127.0.0.1:8000").replace(/\/+$/, "");
+const MAX_FILE_MB = 100;
 
 function uid() {
   return `msg_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 }
 
-// --- High-Fidelity Minimalist SVGs ---
-const IconSparkles = ({ size = 16, className = "" }) => (
-  <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-12.728l.707.707m11.314 11.314l.707-.707M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10z" />
-  </svg>
-);
+/* ━━━ SVG ICON LIBRARY ━━━ */
+const Icon = {
+  Brain: ({ size = 20 }) => (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2a5 5 0 0 1 5 5c0 1.5-.5 2.5-1.5 3.5L12 14l-3.5-3.5C7.5 9.5 7 8.5 7 7a5 5 0 0 1 5-5z"/>
+      <path d="M12 14v8"/><path d="M8 18h8"/>
+      <circle cx="9" cy="7" r="1" fill="currentColor" stroke="none"/>
+      <circle cx="15" cy="7" r="1" fill="currentColor" stroke="none"/>
+    </svg>
+  ),
+  Send: ({ size = 18 }) => (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/>
+    </svg>
+  ),
+  Upload: ({ size = 22 }) => (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+      <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+    </svg>
+  ),
+  File: ({ size = 16 }) => (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+      <polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+    </svg>
+  ),
+  Sparkle: ({ size = 16 }) => (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="currentColor">
+      <path d="M12 1l2.5 7.5L22 12l-7.5 2.5L12 22l-2.5-7.5L2 12l7.5-2.5z"/>
+    </svg>
+  ),
+  Download: ({ size = 16 }) => (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+    </svg>
+  ),
+  Refresh: ({ size = 16 }) => (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/>
+    </svg>
+  ),
+  Clip: ({ size = 18 }) => (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/>
+    </svg>
+  ),
+  X: ({ size = 14 }) => (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+      <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+    </svg>
+  ),
+  Layers: ({ size = 18 }) => (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>
+    </svg>
+  ),
+  Zap: ({ size = 16 }) => (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="currentColor">
+      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+    </svg>
+  ),
+};
 
-const IconPaperclip = ({ size = 20, className = "" }) => (
-  <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
-  </svg>
-);
-
-const IconArrowUp = ({ size = 18, className = "" }) => (
-  <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <line x1="12" y1="19" x2="12" y2="5" />
-    <polyline points="5 12 12 5 19 12" />
-  </svg>
-);
-
-const IconFileText = ({ size = 16, className = "" }) => (
-  <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-    <polyline points="14 2 14 8 20 8" />
-    <line x1="16" y1="13" x2="8" y2="13" />
-    <line x1="16" y1="17" x2="8" y2="17" />
-  </svg>
-);
-
-const IconClose = ({ size = 14, className = "" }) => (
-  <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <line x1="18" y1="6" x2="6" y2="18" />
-    <line x1="6" y1="6" x2="18" y2="18" />
-  </svg>
-);
-
-const IconCompass = ({ size = 18, className = "" }) => (
-  <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <circle cx="12" cy="12" r="10" />
-    <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
-  </svg>
-);
-
+/* ━━━ TYPING INDICATOR ━━━ */
 const TypingIndicator = () => (
-  <div className="flex items-center gap-1 py-3">
-    <div className="w-1.5 h-1.5 bg-neutral-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-    <div className="w-1.5 h-1.5 bg-neutral-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-    <div className="w-1.5 h-1.5 bg-neutral-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+  <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "12px 0" }}>
+    {[0, 1, 2].map(i => (
+      <div key={i} style={{
+        width: 7, height: 7,
+        borderRadius: "50%",
+        background: "linear-gradient(135deg, #00b4d8, #8b5cf6)",
+        animation: `typing-dot 1.4s ease-in-out ${i * 0.15}s infinite`,
+      }} />
+    ))}
+    <span style={{ marginLeft: 8, fontSize: 12, color: "#64748b", fontStyle: "italic" }}>analyzing...</span>
   </div>
 );
 
-// --- MAIN APPLICATION COMPONENT ---
+/* ━━━ ANIMATED BACKGROUND ORBS ━━━ */
+const BackgroundOrbs = () => (
+  <div style={{ position: "fixed", inset: 0, overflow: "hidden", pointerEvents: "none", zIndex: 0 }}>
+    <div style={{
+      position: "absolute", width: 500, height: 500, borderRadius: "50%",
+      background: "radial-gradient(circle, rgba(139,92,246,0.12) 0%, transparent 70%)",
+      top: "-10%", right: "-5%",
+      animation: "float-orb 20s ease-in-out infinite",
+    }} />
+    <div style={{
+      position: "absolute", width: 600, height: 600, borderRadius: "50%",
+      background: "radial-gradient(circle, rgba(0,180,216,0.08) 0%, transparent 70%)",
+      bottom: "-15%", left: "-10%",
+      animation: "float-orb-2 25s ease-in-out infinite",
+    }} />
+    <div style={{
+      position: "absolute", width: 400, height: 400, borderRadius: "50%",
+      background: "radial-gradient(circle, rgba(251,191,36,0.06) 0%, transparent 70%)",
+      top: "40%", left: "50%",
+      animation: "float-orb-3 30s ease-in-out infinite",
+    }} />
+    {/* Grid overlay */}
+    <div style={{
+      position: "absolute", inset: 0,
+      backgroundImage: `
+        linear-gradient(rgba(139,92,246,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(139,92,246,0.03) 1px, transparent 1px)
+      `,
+      backgroundSize: "60px 60px",
+    }} />
+  </div>
+);
+
+/* ━━━ MESSAGE COMPONENT ━━━ */
+const MessageBubble = ({ msg, index }) => {
+  const isUser = msg.role === "user";
+  
+  return (
+    <div
+      className="animate-slide-up"
+      style={{
+        display: "flex",
+        gap: 14,
+        padding: "16px 20px",
+        alignItems: "flex-start",
+        animationDelay: `${index * 0.05}s`,
+        flexDirection: isUser ? "row-reverse" : "row",
+      }}
+    >
+      {/* Avatar */}
+      <div style={{
+        width: 36, height: 36, borderRadius: 12, flexShrink: 0,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        background: isUser
+          ? "linear-gradient(135deg, #1e293b, #334155)"
+          : "linear-gradient(135deg, #8b5cf6, #06b6d4)",
+        boxShadow: isUser ? "none" : "0 0 20px rgba(139,92,246,0.2)",
+        fontSize: 14, fontWeight: 700, color: "#fff",
+      }}>
+        {isUser ? "Y" : <Icon.Sparkle size={16} />}
+      </div>
+
+      {/* Content */}
+      <div style={{
+        maxWidth: "75%",
+        padding: "14px 18px",
+        borderRadius: isUser ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
+        background: isUser
+          ? "linear-gradient(135deg, rgba(139,92,246,0.15), rgba(139,92,246,0.08))"
+          : "rgba(255,255,255,0.03)",
+        border: `1px solid ${isUser ? "rgba(139,92,246,0.2)" : "rgba(255,255,255,0.06)"}`,
+        fontSize: 14,
+        lineHeight: 1.7,
+        color: "#e2e8f0",
+        wordBreak: "break-word",
+        whiteSpace: "pre-wrap",
+      }}>
+        {msg.content}
+        {msg.sources && msg.sources.length > 0 && (
+          <div style={{
+            marginTop: 12, paddingTop: 10,
+            borderTop: "1px solid rgba(255,255,255,0.06)",
+            display: "flex", flexWrap: "wrap", gap: 6,
+          }}>
+            {msg.sources.map((s, i) => (
+              <span key={i} style={{
+                fontSize: 11, padding: "3px 10px", borderRadius: 20,
+                background: "rgba(0,180,216,0.1)", border: "1px solid rgba(0,180,216,0.2)",
+                color: "#00b4d8", fontFamily: "'JetBrains Mono', monospace",
+              }}>
+                Chunk {s.chunk_index ?? i + 1} · {(s.score * 100).toFixed(0)}%
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+/* ━━━ SUGGESTED QUERY CHIPS ━━━ */
+const SUGGESTIONS = [
+  { icon: "📊", text: "Generate executive summary", color: "#8b5cf6" },
+  { icon: "🔬", text: "Extract key metrics & data", color: "#00b4d8" },
+  { icon: "🧠", text: "Identify core arguments", color: "#f59e0b" },
+  { icon: "📋", text: "List main findings", color: "#34d399" },
+];
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+/* ━━━   MAIN APPLICATION        ━━━ */
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 export default function HomeGPT() {
-  // 1. All Application State Declared Together
   const [fileInfo, setFileInfo] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [summary, setSummary] = useState("");
   const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
   const [question, setQuestion] = useState("");
   const [isAsking, setIsAsking] = useState(false);
   const [askError, setAskError] = useState(null);
-  const [questionsAsked, setQuestionsAsked] = useState(0);
-  
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [isDragOver, setIsDragOver] = useState(false);
+
   const [messages, setMessages] = useState([
     {
       id: uid(),
       role: "assistant",
-      content: "Hello. I am ready to assist with your document processing and analysis. Attach a source PDF below to initialize the workspace context.",
+      content: "Welcome to ResearchAI. I'm your intelligent document analysis engine.\n\nUpload a PDF to begin — I'll process, vectorize, and prepare it for deep analysis. Ask me anything about your documents.",
     },
   ]);
 
-  // 2. All Refs Declared Together
   const fileInputRef = useRef(null);
   const inputRef = useRef(null);
   const messagesEndRef = useRef(null);
@@ -92,7 +226,6 @@ export default function HomeGPT() {
   const askAbortRef = useRef(null);
   const summaryAbortRef = useRef(null);
 
-  // 3. Side Effects (useEffect)
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isAsking]);
@@ -105,190 +238,181 @@ export default function HomeGPT() {
     };
   }, []);
 
-  const adjustTextareaHeight = useCallback(() => {
-    const textarea = inputRef.current;
-    if (textarea) {
-      textarea.style.height = "auto";
-      textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`;
-    }
+  const adjustTextarea = useCallback(() => {
+    const ta = inputRef.current;
+    if (ta) { ta.style.height = "auto"; ta.style.height = `${Math.min(ta.scrollHeight, 180)}px`; }
   }, []);
 
-  useEffect(() => {
-    adjustTextareaHeight();
-  }, [question, adjustTextareaHeight]);
+  useEffect(() => { adjustTextarea(); }, [question, adjustTextarea]);
 
-  // 4. Action Handlers
-  const handleUpload = async (e) => {
-    const selectedFile = e.target.files?.[0];
-    if (!selectedFile) return;
-
-    if (selectedFile.type !== "application/pdf" && !selectedFile.name.toLowerCase().endsWith(".pdf")) {
-      setUploadError("Unsupported format. Please upload a valid PDF document.");
+  /* ── Upload Handler ── */
+  const handleUpload = async (file) => {
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith(".pdf")) {
+      setUploadError("Only PDF files are supported.");
       return;
     }
-    if (selectedFile.size > MAX_FILE_MB * 1024 * 1024) {
-      setUploadError(`File constraints broken. Maximum allowed size is ${MAX_FILE_MB}MB.`);
+    if (file.size > MAX_FILE_MB * 1024 * 1024) {
+      setUploadError(`File too large. Max ${MAX_FILE_MB}MB.`);
       return;
     }
 
     setUploadError(null);
     setIsUploading(true);
+    setUploadProgress(0);
+
+    // Simulate progress
+    const progressInterval = setInterval(() => {
+      setUploadProgress(p => Math.min(p + Math.random() * 15, 90));
+    }, 300);
 
     const formData = new FormData();
-    formData.append("file", selectedFile);
-
+    formData.append("file", file);
     const controller = new AbortController();
     uploadAbortRef.current = controller;
 
     try {
-      const res = await fetch(`${API_URL}/upload`, { 
-        method: "POST", 
-        body: formData, 
-        signal: controller.signal 
+      const res = await fetch(`${API_URL}/upload`, {
+        method: "POST", body: formData, signal: controller.signal,
       });
-      if (!res.ok) throw new Error("Synchronization failure. Verify that your backend server is active.");
-      
+      if (!res.ok) throw new Error("Upload failed. Check backend connection.");
       const data = await res.json();
+      
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+      
       setFileInfo({ filename: data.filename, chunks: data.total_chunks });
-      setMessages((prev) => [
-        ...prev, 
-        { id: uid(), role: "assistant", content: `Context established successfully. I have processed and vectorized "${data.filename}" into ${data.total_chunks} structured semantic segments.` }
-      ]);
+      setMessages(prev => [...prev, {
+        id: uid(), role: "assistant",
+        content: `✅ Document processed successfully!\n\n📄 **${data.filename}**\n📦 ${data.total_chunks} semantic chunks created\n\nYour document is ready for analysis. Ask me anything about it, or use the suggested queries below.`,
+      }]);
     } catch (error) {
+      clearInterval(progressInterval);
       if (error.name === "AbortError") return;
-      setUploadError(error.message || "An unhandled error occurred during file ingestion.");
+      setUploadError(error.message);
     } finally {
       setIsUploading(false);
-      uploadAbortRef.current = null;
-      if (fileInputRef.current) fileInputRef.current.value = "";
+      setTimeout(() => setUploadProgress(0), 1000);
     }
   };
 
+  const handleFileInput = (e) => {
+    const file = e.target.files?.[0];
+    if (file) handleUpload(file);
+    e.target.value = "";
+  };
+
+  /* ── Drag & Drop ── */
+  const handleDragOver = (e) => { e.preventDefault(); setIsDragOver(true); };
+  const handleDragLeave = () => setIsDragOver(false);
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) handleUpload(file);
+  };
+
+  /* ── Ask Handler ── */
   const handleAsk = async () => {
-    const trimmed = question.trim();
-    if (!trimmed || isAsking) return;
+    const q = question.trim();
+    if (!q || isAsking) return;
 
-    const chatHistory = messages.map((msg) => ({
-      role: msg.role,
-      content: msg.content,
-    }));
-
-    setMessages((prev) => [...prev, { id: uid(), role: "user", content: trimmed }]);
-    setQuestionsAsked((prev) => prev + 1);
     setQuestion("");
     setAskError(null);
 
-    if (inputRef.current) {
-      inputRef.current.style.height = "auto";
-    }
+    const userMsg = { id: uid(), role: "user", content: q };
+    setMessages(prev => [...prev, userMsg]);
+    setIsAsking(true);
 
     const controller = new AbortController();
     askAbortRef.current = controller;
-    setIsAsking(true);
 
     try {
-      // Changed API_BASE to API_URL here to match your imports
+      const history = messages.filter(m => m.role !== "system").slice(-10).map(m => ({
+        role: m.role, content: m.content,
+      }));
+
       const res = await fetch(`${API_URL}/ask`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          question: trimmed,
-          history: chatHistory,
-          filename: fileInfo?.filename
-        }),
+        body: JSON.stringify({ question: q, history }),
         signal: controller.signal,
       });
-      
-      if (!res.ok) {
-        const errorBody = await res.json().catch(() => null);
-        console.error("ASK REJECTION DETAILS:", errorBody); 
-        throw new Error(errorBody?.detail || `Analysis failed (${res.status}).`);
-      }
-      
+      if (!res.ok) throw new Error("Request failed.");
       const data = await res.json();
-      setMessages((prev) => [...prev, { id: uid(), role: "assistant", content: data.answer || "No insights were returned.", sources: data.sources || [] }]);
+      setMessages(prev => [...prev, {
+        id: uid(), role: "assistant", content: data.answer, sources: data.sources,
+      }]);
     } catch (error) {
       if (error.name === "AbortError") return;
-      const message = error.message || "Failed to process query. Check server status.";
-      setAskError(message);
-      setMessages((prev) => [...prev, { id: uid(), role: "assistant", content: message, isError: true }]);
+      setAskError(error.message);
+      setMessages(prev => [...prev, {
+        id: uid(), role: "assistant",
+        content: "⚠️ I couldn't process that request. Please check your connection and try again.",
+      }]);
     } finally {
       setIsAsking(false);
-      askAbortRef.current = null;
-      inputRef.current?.focus();
     }
   };
 
+  /* ── Summary Handler ── */
   const handleSummary = async () => {
     if (isGeneratingSummary) return;
+    setIsGeneratingSummary(true);
     
+    setMessages(prev => [...prev, {
+      id: uid(), role: "user", content: "Generate an executive summary of the document.",
+    }]);
+
     const controller = new AbortController();
     summaryAbortRef.current = controller;
-    setIsGeneratingSummary(true);
-    setAskError(null);
 
     try {
-      // Changed API_BASE to API_URL here to match your imports
-      const res = await fetch(`${API_URL}/summary`, { 
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ filename: fileInfo?.filename }), 
-        signal: controller.signal 
+      const res = await fetch(`${API_URL}/summary`, {
+        method: "POST", signal: controller.signal,
       });
-      
-      if (!res.ok) {
-        const errorBody = await res.json().catch(() => null);
-        console.error("SUMMARY REJECTION DETAILS:", errorBody);
-        throw new Error("Failed to compile document summary.");
-      }
-      
+      if (!res.ok) throw new Error("Summary generation failed.");
       const data = await res.json();
-      setSummary(data.summary || "Summary generation returned empty.");
-      
-      // Add the summary to the chat window so the user can export it
-      setMessages((prev) => [
-        ...prev, 
-        { 
-          id: uid(), 
-          role: "assistant", 
-          content: data.summary || "Summary generation returned empty.", 
-          isSummary: true // Triggers the PDF export button in your UI
-        }
-      ]);
+      setSummary(data.summary);
+      setMessages(prev => [...prev, {
+        id: uid(), role: "assistant", content: data.summary,
+      }]);
     } catch (error) {
       if (error.name === "AbortError") return;
-      setAskError(error.message || "Failed to generate summary.");
+      setMessages(prev => [...prev, {
+        id: uid(), role: "assistant",
+        content: "⚠️ Could not generate summary. Please try again.",
+      }]);
     } finally {
       setIsGeneratingSummary(false);
-      summaryAbortRef.current = null;
     }
   };
 
-  const exportSummaryPDF = (summaryText) => {
+  /* ── Export PDF ── */
+  const exportPDF = () => {
+    const text = summary || messages.filter(m => m.role === "assistant").map(m => m.content).join("\n\n---\n\n");
     const doc = new jsPDF();
     doc.setFont("Helvetica", "bold");
-    doc.setFontSize(18);
-    doc.text("EXECUTIVE ANALYSIS REPORT", 20, 25);
-    
+    doc.setFontSize(20);
+    doc.setTextColor(139, 92, 246);
+    doc.text("ResearchAI — Analysis Report", 20, 25);
+    doc.setDrawColor(139, 92, 246);
     doc.setLineWidth(0.5);
     doc.line(20, 30, 190, 30);
-    
     doc.setFont("Helvetica", "normal");
     doc.setFontSize(11);
-    const lines = doc.splitTextToSize(summaryText, 170);
+    doc.setTextColor(30, 30, 30);
+    const lines = doc.splitTextToSize(text, 170);
     doc.text(lines, 20, 42);
-    doc.save(`Analysis_Report_${Date.now().toString().slice(-6)}.pdf`);
+    doc.save(`ResearchAI_Report_${Date.now().toString().slice(-6)}.pdf`);
   };
 
-  const handleInputKeyDown = (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleAsk();
-    }
-  };
-
-  const clearWorkspace = () => {
-    setMessages([{ id: uid(), role: "assistant", content: "Workspace cleared. System initialized for new operations." }]);
+  /* ── Clear Session ── */
+  const clearSession = () => {
+    setMessages([{
+      id: uid(), role: "assistant",
+      content: "Session cleared. Ready for a new analysis.\n\nUpload a document to get started.",
+    }]);
     setFileInfo(null);
     setAskError(null);
     setUploadError(null);
@@ -296,198 +420,483 @@ export default function HomeGPT() {
     setSummary("");
   };
 
-  // 5. Render Block
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleAsk(); }
+  };
+
+  /* ━━━ RENDER ━━━ */
   return (
-    <div className="flex h-screen w-full bg-[#FCFBFA] text-[#191919] font-sans antialiased selection:bg-[#EADECE]/60 overflow-hidden relative">
-      
-      {/* Structural Minimalist Sidebar (Left Hand Context) */}
-      <aside className="hidden md:flex flex-col w-[260px] h-full bg-[#F3F2EE] border-r border-[#E5E4E0] px-4 py-6 justify-between shrink-0">
-        <div className="space-y-6">
-          <div className="flex items-center gap-2.5 px-2">
-            <div className="w-5 h-5 rounded bg-[#191919] flex items-center justify-center text-[#FCFBFA] text-xs font-bold tracking-tighter">Ω</div>
-            <span className="text-sm font-semibold tracking-tight text-[#191919]">Workspace Control</span>
+    <div style={{
+      display: "flex", height: "100vh", width: "100vw",
+      background: "#06080d", position: "relative", overflow: "hidden",
+    }}>
+      <BackgroundOrbs />
+
+      {/* ═══ SIDEBAR ═══ */}
+      <aside
+        style={{
+          width: sidebarOpen ? 300 : 0,
+          minWidth: sidebarOpen ? 300 : 0,
+          height: "100vh",
+          display: "flex", flexDirection: "column",
+          background: "rgba(12, 15, 24, 0.8)",
+          backdropFilter: "blur(24px)",
+          borderRight: "1px solid rgba(255,255,255,0.06)",
+          transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+          overflow: "hidden",
+          position: "relative",
+          zIndex: 10,
+        }}
+      >
+        {/* Sidebar Top Glow */}
+        <div style={{
+          position: "absolute", top: 0, left: 0, right: 0, height: 120,
+          background: "linear-gradient(180deg, rgba(139,92,246,0.08) 0%, transparent 100%)",
+          pointerEvents: "none",
+        }} />
+
+        {/* Brand */}
+        <div style={{
+          padding: "24px 20px 16px",
+          borderBottom: "1px solid rgba(255,255,255,0.06)",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{
+              width: 40, height: 40, borderRadius: 12,
+              background: "linear-gradient(135deg, #8b5cf6, #06b6d4)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              boxShadow: "0 0 24px rgba(139,92,246,0.3)",
+            }}>
+              <Icon.Layers size={20} />
+            </div>
+            <div>
+              <div style={{
+                fontSize: 16, fontWeight: 800, letterSpacing: "-0.02em",
+                background: "linear-gradient(135deg, #e2e8f0, #94a3b8)",
+                WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+              }}>
+                ResearchAI
+              </div>
+              <div style={{ fontSize: 10, color: "#64748b", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+                Quantum Analysis Engine
+              </div>
+            </div>
           </div>
-          
-          <button 
-            onClick={clearWorkspace} 
-            className="w-full text-left px-3 py-2 text-xs font-medium text-[#66645E] hover:text-black hover:bg-[#EAE9E4] rounded-lg transition-all"
+        </div>
+
+        {/* New Session Button */}
+        <div style={{ padding: "16px 16px 8px" }}>
+          <button
+            onClick={clearSession}
+            style={{
+              width: "100%", padding: "10px 16px",
+              background: "linear-gradient(135deg, rgba(139,92,246,0.15), rgba(6,182,212,0.1))",
+              border: "1px solid rgba(139,92,246,0.25)",
+              borderRadius: 12, color: "#e2e8f0",
+              fontSize: 13, fontWeight: 600, cursor: "pointer",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+              transition: "all 0.2s",
+            }}
+            onMouseEnter={e => {
+              e.target.style.background = "linear-gradient(135deg, rgba(139,92,246,0.25), rgba(6,182,212,0.2))";
+              e.target.style.boxShadow = "0 0 20px rgba(139,92,246,0.15)";
+            }}
+            onMouseLeave={e => {
+              e.target.style.background = "linear-gradient(135deg, rgba(139,92,246,0.15), rgba(6,182,212,0.1))";
+              e.target.style.boxShadow = "none";
+            }}
           >
-            + Reset Active Instance
+            <Icon.Refresh size={14} />
+            New Analysis Session
           </button>
         </div>
 
-        <div className="px-2 pt-4 border-t border-[#E5E4E0] text-[11px] font-mono text-[#8C8A82]">
-          Network: <span className="text-emerald-700 font-bold">Connected</span>
+        {/* Upload Section */}
+        <div style={{ padding: "12px 16px", flex: 1 }}>
+          <div style={{
+            fontSize: 10, color: "#64748b", fontWeight: 600,
+            letterSpacing: "0.12em", textTransform: "uppercase",
+            marginBottom: 12, paddingLeft: 4,
+          }}>
+            Document Pipeline
+          </div>
+
+          {/* Upload Zone */}
+          <div
+            onClick={() => !isUploading && fileInputRef.current?.click()}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            style={{
+              padding: "28px 16px",
+              borderRadius: 16,
+              border: `2px dashed ${isDragOver ? "#8b5cf6" : "rgba(255,255,255,0.08)"}`,
+              background: isDragOver ? "rgba(139,92,246,0.08)" : "rgba(255,255,255,0.02)",
+              cursor: isUploading ? "wait" : "pointer",
+              transition: "all 0.3s",
+              textAlign: "center",
+              position: "relative",
+              overflow: "hidden",
+            }}
+          >
+            {/* Upload Progress Bar */}
+            {isUploading && (
+              <div style={{
+                position: "absolute", bottom: 0, left: 0,
+                height: 3,
+                width: `${uploadProgress}%`,
+                background: "linear-gradient(90deg, #8b5cf6, #06b6d4)",
+                borderRadius: 3,
+                transition: "width 0.3s",
+              }} />
+            )}
+
+            <div style={{
+              width: 48, height: 48, borderRadius: 14, margin: "0 auto 12px",
+              background: "linear-gradient(135deg, rgba(139,92,246,0.15), rgba(6,182,212,0.1))",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              color: isDragOver ? "#8b5cf6" : "#64748b",
+              transition: "all 0.3s",
+            }}>
+              <Icon.Upload size={22} />
+            </div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0", marginBottom: 4 }}>
+              {isUploading ? "Processing document..." : "Drop PDF here"}
+            </div>
+            <div style={{ fontSize: 11, color: "#64748b" }}>
+              {isUploading ? `${Math.round(uploadProgress)}% complete` : "or click to browse"}
+            </div>
+          </div>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".pdf"
+            onChange={handleFileInput}
+            style={{ display: "none" }}
+          />
+
+          {/* Upload Error */}
+          {uploadError && (
+            <div className="animate-slide-up" style={{
+              marginTop: 10, padding: "10px 12px", borderRadius: 10,
+              background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)",
+              fontSize: 12, color: "#fb7185",
+            }}>
+              {uploadError}
+            </div>
+          )}
+
+          {/* Active Document */}
+          {fileInfo && (
+            <div className="animate-slide-up" style={{
+              marginTop: 14, padding: "14px 14px", borderRadius: 14,
+              background: "rgba(139,92,246,0.06)",
+              border: "1px solid rgba(139,92,246,0.15)",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+                <div style={{
+                  width: 32, height: 32, borderRadius: 8,
+                  background: "linear-gradient(135deg, #8b5cf6, #06b6d4)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  <Icon.File size={14} />
+                </div>
+                <div style={{ flex: 1, overflow: "hidden" }}>
+                  <div style={{
+                    fontSize: 12, fontWeight: 600, color: "#e2e8f0",
+                    textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap",
+                  }}>
+                    {fileInfo.filename}
+                  </div>
+                  <div style={{ fontSize: 10, color: "#64748b" }}>
+                    {fileInfo.chunks} chunks indexed
+                  </div>
+                </div>
+              </div>
+              <div style={{
+                width: "100%", height: 3, borderRadius: 3,
+                background: "rgba(255,255,255,0.06)",
+                overflow: "hidden",
+              }}>
+                <div style={{
+                  width: "100%", height: "100%", borderRadius: 3,
+                  background: "linear-gradient(90deg, #8b5cf6, #06b6d4)",
+                }} />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Sidebar Footer */}
+        <div style={{
+          padding: "16px 20px",
+          borderTop: "1px solid rgba(255,255,255,0.06)",
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{
+              width: 8, height: 8, borderRadius: "50%",
+              background: "#34d399",
+              boxShadow: "0 0 8px rgba(52,211,153,0.5)",
+              animation: "glow-pulse 2s ease-in-out infinite",
+            }} />
+            <span style={{ fontSize: 11, color: "#64748b", fontWeight: 500 }}>System Online</span>
+          </div>
+          <span style={{
+            fontSize: 9, color: "#334155",
+            fontFamily: "'JetBrains Mono', monospace",
+            letterSpacing: "0.05em",
+          }}>
+            v3.0
+          </span>
         </div>
       </aside>
 
-      {/* Main Operational Container */}
-      <div className="flex-1 flex flex-col h-full min-w-0 bg-[#FCFBFA] relative">
-        
-        {/* Subtle Top Status Bar */}
-        <header className="w-full h-14 border-b border-[#E5E4E0]/60 flex items-center justify-between px-6 bg-[#FCFBFA]/80 backdrop-blur-md z-10 shrink-0">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold uppercase tracking-widest text-[#8C8A82]">Current Notebook</span>
+      {/* ═══ MAIN CONTENT ═══ */}
+      <main style={{
+        flex: 1, display: "flex", flexDirection: "column",
+        height: "100vh", position: "relative", zIndex: 5,
+        overflow: "hidden",
+      }}>
+        {/* ── Top Header ── */}
+        <header style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: "14px 24px",
+          background: "rgba(12,15,24,0.6)",
+          backdropFilter: "blur(16px)",
+          borderBottom: "1px solid rgba(255,255,255,0.04)",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            {/* Sidebar Toggle */}
+            <button
+              onClick={() => setSidebarOpen(p => !p)}
+              style={{
+                width: 36, height: 36, borderRadius: 10,
+                background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)",
+                color: "#94a3b8", cursor: "pointer",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                transition: "all 0.2s",
+              }}
+              onMouseEnter={e => e.target.style.background = "rgba(255,255,255,0.08)"}
+              onMouseLeave={e => e.target.style.background = "rgba(255,255,255,0.04)"}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+              </svg>
+            </button>
+
+            <div>
+              <h1 style={{
+                fontSize: 15, fontWeight: 700, color: "#e2e8f0",
+                letterSpacing: "-0.01em",
+              }}>
+                Analysis Workspace
+              </h1>
+              <div style={{ fontSize: 11, color: "#475569" }}>
+                {fileInfo ? `Analyzing: ${fileInfo.filename}` : "Ready for document upload"}
+              </div>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div style={{ display: "flex", gap: 8 }}>
             {fileInfo && (
-              <span className="text-xs bg-[#EADECE]/40 px-2 py-0.5 rounded text-[#5C5146] font-medium max-w-[150px] truncate">
-                {fileInfo.filename}
-              </span>
+              <>
+                <button
+                  onClick={handleSummary}
+                  disabled={isGeneratingSummary}
+                  style={{
+                    padding: "8px 16px", borderRadius: 10,
+                    background: "linear-gradient(135deg, rgba(139,92,246,0.15), rgba(6,182,212,0.1))",
+                    border: "1px solid rgba(139,92,246,0.2)",
+                    color: "#c4b5fd", fontSize: 12, fontWeight: 600,
+                    cursor: isGeneratingSummary ? "wait" : "pointer",
+                    display: "flex", alignItems: "center", gap: 6,
+                    transition: "all 0.2s",
+                    opacity: isGeneratingSummary ? 0.5 : 1,
+                  }}
+                  onMouseEnter={e => { if (!isGeneratingSummary) e.target.style.boxShadow = "0 0 16px rgba(139,92,246,0.2)"; }}
+                  onMouseLeave={e => e.target.style.boxShadow = "none"}
+                >
+                  <Icon.Sparkle size={13} />
+                  {isGeneratingSummary ? "Generating..." : "Summary"}
+                </button>
+                <button
+                  onClick={exportPDF}
+                  style={{
+                    padding: "8px 16px", borderRadius: 10,
+                    background: "rgba(255,255,255,0.04)",
+                    border: "1px solid rgba(255,255,255,0.08)",
+                    color: "#94a3b8", fontSize: 12, fontWeight: 600,
+                    cursor: "pointer", display: "flex", alignItems: "center", gap: 6,
+                    transition: "all 0.2s",
+                  }}
+                  onMouseEnter={e => e.target.style.background = "rgba(255,255,255,0.08)"}
+                  onMouseLeave={e => e.target.style.background = "rgba(255,255,255,0.04)"}
+                >
+                  <Icon.Download size={13} />
+                  Export
+                </button>
+              </>
             )}
           </div>
-          <button onClick={clearWorkspace} className="md:hidden text-xs font-medium text-[#8C8A82] hover:text-black transition-colors">
-            Reset
-          </button>
         </header>
 
-        {/* Beautiful Scrollable Content Canvas */}
-        <div className="flex-1 overflow-y-auto scrollbar-none px-4 md:px-8 pt-6 pb-44">
-          <div className="max-w-2xl mx-auto flex flex-col gap-10">
-            
-            {messages.map((msg) => (
-              <div key={msg.id} className="flex gap-6 animate-in fade-in duration-300">
-                {/* Minimalist Column Indicator */}
-                <div className="shrink-0 pt-0.5">
-                  {msg.role === "user" ? (
-                    <div className="w-6 h-6 rounded-full bg-[#EADECE] text-[#5C5146] flex items-center justify-center text-[10px] font-bold">U</div>
-                  ) : (
-                    <div className="w-6 h-6 rounded-full bg-[#191919] text-[#FCFBFA] flex items-center justify-center text-[10px] font-mono">AI</div>
-                  )}
-                </div>
-                
-                {/* Streamlined Document-style Copy Block */}
-                <div className="flex-1 min-w-0">
-                  <div className="text-[15px] leading-relaxed text-[#191919] font-normal tracking-wide whitespace-pre-wrap">
-                    {msg.content}
-                  </div>
-
-                  {/* Grounded Source Readout */}
-                  {msg.sources && msg.sources.length > 0 && (
-                    <div className="mt-4 flex flex-wrap items-center gap-1.5 border-t border-[#E5E4E0]/40 pt-3">
-                      <span className="text-[10px] font-semibold text-[#8C8A82] uppercase tracking-wider mr-1">Context Anchors:</span>
-                      {msg.sources.map((source, idx) => (
-                        <span key={idx} className="bg-[#F3F2EE] border border-[#E5E4E0] px-1.5 py-0.5 rounded font-mono text-[10px] text-[#66645E]">
-                          Segment {source.split("_chunk_")[1] || source}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Clean PDF Download Trigger */}
-                  {msg.isSummary && (
-                    <button 
-                      onClick={() => exportSummaryPDF(msg.content)}
-                      className="mt-4 inline-flex items-center gap-2 px-3 py-1.5 bg-[#191919] hover:bg-[#33322E] text-[#FCFBFA] text-xs font-semibold rounded-lg shadow-sm transition-colors"
-                    >
-                      <IconFileText size={12} /> Compile PDF Report
-                    </button>
-                  )}
-                </div>
-              </div>
+        {/* ── Messages Area ── */}
+        <div style={{
+          flex: 1, overflowY: "auto", padding: "16px 0",
+          scrollBehavior: "smooth",
+        }}>
+          <div style={{ maxWidth: 900, margin: "0 auto" }}>
+            {messages.map((msg, i) => (
+              <MessageBubble key={msg.id} msg={msg} index={i} />
             ))}
 
-            {/* Dynamic Loading Matrix */}
             {isAsking && (
-              <div className="flex gap-6 animate-in fade-in">
-                <div className="shrink-0 pt-0.5">
-                  <div className="w-6 h-6 rounded-full bg-[#191919] text-[#FCFBFA] flex items-center justify-center text-[10px] font-mono animate-pulse">AI</div>
+              <div style={{ padding: "8px 20px", display: "flex", gap: 14, alignItems: "flex-start" }}>
+                <div style={{
+                  width: 36, height: 36, borderRadius: 12, flexShrink: 0,
+                  background: "linear-gradient(135deg, #8b5cf6, #06b6d4)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  boxShadow: "0 0 20px rgba(139,92,246,0.2)",
+                }}>
+                  <Icon.Sparkle size={16} />
                 </div>
-                <div className="flex-1">
-                  <TypingIndicator />
-                </div>
+                <TypingIndicator />
               </div>
             )}
 
-            <div ref={messagesEndRef} className="h-2" />
+            {askError && (
+              <div className="animate-slide-up" style={{
+                margin: "8px 20px", padding: "10px 14px", borderRadius: 10,
+                background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.15)",
+                fontSize: 12, color: "#fb7185",
+              }}>
+                {askError}
+              </div>
+            )}
+
+            <div ref={messagesEndRef} />
           </div>
         </div>
 
-        {/* Absolute Base-Anchored Control Dock (Zero-Scroll Form Factor) */}
-        <footer className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-[#FCFBFA] via-[#FCFBFA] to-transparent pt-8 pb-6 px-4 z-20 pointer-events-none">
-          <div className="max-w-2xl mx-auto pointer-events-auto">
-            
-            {/* Integrated Error Handling Notification Panel */}
-            {(askError || uploadError) && (
-              <div className="mb-4 px-4 py-3 bg-[#FFF5F5] border border-[#FCA5A5] text-[#991B1B] rounded-xl text-xs font-medium flex justify-between items-center shadow-sm animate-in slide-in-from-bottom-2">
-                <span>{askError || uploadError}</span>
-                <button onClick={() => { setAskError(null); setUploadError(null); }} className="hover:opacity-60 transition-opacity p-1">
-                  <IconClose size={14}/>
-                </button>
-              </div>
-            )}
-
-            {/* Active Attachment Capsule Layer */}
-            {(fileInfo || isUploading) && (
-              <div className="mb-3.5 flex items-center gap-2 animate-in fade-in slide-in-from-bottom-1">
-                <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-[#F3F2EE] border border-[#E5E4E0] rounded-xl shadow-sm text-xs font-medium text-[#5C5146]">
-                  {isUploading ? (
-                    <span className="w-3 h-3 border-2 border-[#8C8A82] border-t-black rounded-full animate-spin" />
-                  ) : (
-                    <IconFileText size={13} className="text-[#8C8A82]" />
-                  )}
-                  <span className="truncate max-w-[180px] font-mono">{fileInfo?.filename || "Analyzing Data System..."}</span>
-                </div>
-
-                {/* Instant Executive Summary Action */}
-                {fileInfo && !isAsking && !isGeneratingSummary && (
-                  <button 
-                    onClick={handleSummary}
-                    className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider px-3 py-1.5 bg-white border border-[#E5E4E0] text-[#66645E] hover:text-black hover:border-neutral-400 rounded-xl shadow-sm transition-all"
-                  >
-                    <IconSparkles size={11} /> Extract Summary
-                  </button>
-                )}
-                {isGeneratingSummary && (
-                   <div className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider px-3 py-1.5 bg-white border border-[#E5E4E0] text-[#66645E] rounded-xl shadow-sm">
-                    <span className="w-3 h-3 border-2 border-[#8C8A82] border-t-black rounded-full animate-spin" /> Processing...
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Premium Console Ingestion Architecture */}
-            <div className="relative flex items-end gap-2 bg-[#F3F2EE] rounded-2xl p-2.5 transition-all border border-[#E5E4E0] focus-within:border-neutral-400 focus-within:bg-white shadow-sm focus-within:shadow-md">
-              
-              <input ref={fileInputRef} type="file" accept="application/pdf,.pdf" className="hidden" onChange={handleUpload} />
-              
-              {/* Paperclip Action */}
-              <button 
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isUploading || isAsking}
-                className="shrink-0 w-9 h-9 flex items-center justify-center text-[#8C8A82] hover:text-black disabled:opacity-40 transition-colors mb-0.5 rounded-xl hover:bg-[#EAE9E4]"
-                title="Inject PDF Document"
-              >
-                <IconPaperclip size={18} />
-              </button>
-
-              {/* Seamless Dynamic Sizing Input Canvas */}
-              <textarea
-                ref={inputRef}
-                value={question}
-                onChange={(e) => setQuestion(e.target.value)}
-                onKeyDown={handleInputKeyDown}
-                placeholder={fileInfo ? "Inquire about document parameters..." : "Ask a question or initialize a dataset..."}
-                disabled={isAsking}
-                rows={1}
-                className="flex-1 bg-transparent border-none outline-none text-[15px] px-1 py-2.5 resize-none text-[#191919] placeholder-[#8C8A82] disabled:opacity-50 min-h-[40px] max-h-[180px] overflow-y-auto leading-relaxed"
-              />
-              
-              {/* Submission Node */}
+        {/* ── Suggestion Chips ── */}
+        {fileInfo && messages.length <= 3 && (
+          <div style={{
+            display: "flex", justifyContent: "center", gap: 8,
+            padding: "0 24px 12px", flexWrap: "wrap",
+          }}>
+            {SUGGESTIONS.map((s, i) => (
               <button
-                onClick={handleAsk}
-                disabled={isAsking || (!question.trim() && !fileInfo)}
-                className="shrink-0 w-9 h-9 flex items-center justify-center bg-[#191919] text-[#FCFBFA] rounded-xl hover:bg-[#33322E] disabled:bg-neutral-200 disabled:text-neutral-400 transition-colors mb-0.5"
-                aria-label="Dispatch Query"
+                key={i}
+                onClick={() => { setQuestion(s.text); setTimeout(handleAsk, 50); }}
+                className="animate-fade-in"
+                style={{
+                  padding: "8px 16px", borderRadius: 20,
+                  background: "rgba(255,255,255,0.03)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  color: "#94a3b8", fontSize: 12, cursor: "pointer",
+                  display: "flex", alignItems: "center", gap: 6,
+                  transition: "all 0.2s",
+                  animationDelay: `${i * 0.1}s`,
+                }}
+                onMouseEnter={e => {
+                  e.target.style.background = `${s.color}15`;
+                  e.target.style.borderColor = `${s.color}40`;
+                  e.target.style.color = s.color;
+                }}
+                onMouseLeave={e => {
+                  e.target.style.background = "rgba(255,255,255,0.03)";
+                  e.target.style.borderColor = "rgba(255,255,255,0.08)";
+                  e.target.style.color = "#94a3b8";
+                }}
               >
-                <IconArrowUp size={16} />
+                <span>{s.icon}</span>
+                {s.text}
               </button>
-            </div>
-            
-            <div className="text-center mt-2.5">
-              <p className="text-[10px] text-[#8C8A82] font-medium tracking-wide">System processing running over semantic indexing models.</p>
-            </div>
+            ))}
           </div>
-        </footer>
-      </div>
+        )}
+
+        {/* ── Input Area ── */}
+        <div style={{
+          padding: "12px 24px 20px",
+          background: "linear-gradient(180deg, transparent 0%, rgba(6,8,13,0.8) 30%)",
+        }}>
+          <div style={{
+            maxWidth: 900, margin: "0 auto",
+            display: "flex", alignItems: "flex-end", gap: 10,
+            background: "rgba(17,24,39,0.6)",
+            backdropFilter: "blur(20px)",
+            border: "1px solid rgba(255,255,255,0.08)",
+            borderRadius: 18, padding: "6px 8px 6px 16px",
+            transition: "all 0.3s",
+            boxShadow: "0 4px 24px rgba(0,0,0,0.3)",
+          }}>
+            {/* Attach Button */}
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              style={{
+                width: 38, height: 38, borderRadius: 12, border: "none",
+                background: "transparent", color: "#64748b",
+                cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                transition: "all 0.2s", flexShrink: 0,
+              }}
+              onMouseEnter={e => e.target.style.color = "#8b5cf6"}
+              onMouseLeave={e => e.target.style.color = "#64748b"}
+            >
+              <Icon.Clip size={18} />
+            </button>
+
+            {/* Text Input */}
+            <textarea
+              ref={inputRef}
+              value={question}
+              onChange={e => setQuestion(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={fileInfo ? "Ask anything about your document..." : "Upload a PDF to start analyzing..."}
+              rows={1}
+              style={{
+                flex: 1, resize: "none", border: "none", outline: "none",
+                background: "transparent", color: "#e2e8f0",
+                fontSize: 14, lineHeight: 1.6,
+                fontFamily: "'Inter', sans-serif",
+                maxHeight: 180, padding: "8px 0",
+              }}
+            />
+
+            {/* Send Button */}
+            <button
+              onClick={handleAsk}
+              disabled={!question.trim() || isAsking}
+              style={{
+                width: 40, height: 40, borderRadius: 12, border: "none",
+                background: question.trim() && !isAsking
+                  ? "linear-gradient(135deg, #8b5cf6, #06b6d4)"
+                  : "rgba(255,255,255,0.05)",
+                color: question.trim() && !isAsking ? "#fff" : "#334155",
+                cursor: question.trim() && !isAsking ? "pointer" : "default",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                transition: "all 0.3s", flexShrink: 0,
+                boxShadow: question.trim() && !isAsking ? "0 0 20px rgba(139,92,246,0.3)" : "none",
+              }}
+            >
+              <Icon.Send size={16} />
+            </button>
+          </div>
+
+          {/* Footer */}
+          <div style={{
+            textAlign: "center", marginTop: 10,
+            fontSize: 10, color: "#334155",
+            fontFamily: "'JetBrains Mono', monospace",
+            letterSpacing: "0.08em",
+          }}>
+            RESEARCHAI ENGINE V3.0 · POWERED BY QUANTUM SEMANTIC INDEXING
+          </div>
+        </div>
+      </main>
     </div>
   );
 }

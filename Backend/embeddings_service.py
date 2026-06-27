@@ -1,14 +1,19 @@
 import os
-from sentence_transformers import SentenceTransformer
+from dotenv import load_dotenv
+from google import genai
 
-model_dir = os.path.join(os.path.dirname(__file__), "local_model")
+load_dotenv()
+client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
-if os.path.exists(model_dir):
-    print("Loading SentenceTransformer model from local storage...")
-    model = SentenceTransformer(model_dir)
-else:
-    print("Loading SentenceTransformer model from Hugging Face...")
-    model = SentenceTransformer("all-MiniLM-L6-v2")
+def generate_embeddings(texts):
+    embeddings = []
 
-def generate_embeddings(chunks):
-    return model.encode(chunks).tolist()
+    for text in texts:
+        response = client.models.embed_content(
+            model="text-embedding-004",
+            contents=text
+        )
+
+        embeddings.append(response.embeddings[0].values)
+
+    return embeddings

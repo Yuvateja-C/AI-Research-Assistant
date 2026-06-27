@@ -1,13 +1,30 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
 @import "tailwindcss";
 
+
 :root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
+  --bg-void: #06080d;
+  --bg-deep: #0c0f18;
+  --bg-surface: #111827;
+  --glass-bg: rgba(17, 24, 39, 0.55);
+  --glass-border: rgba(255, 255, 255, 0.06);
+  --glass-hover: rgba(255, 255, 255, 0.1);
+  --accent-cyan: #00b4d8;
+  --accent-violet: #8b5cf6;
+  --accent-gold: #fbbf24;
+  --accent-emerald: #34d399;
+  --accent-rose: #fb7185;
+  --text-primary: #e2e8f0;
+  --text-secondary: #94a3b8;
+  --text-muted: #475569;
+  --glow-cyan: 0 0 20px rgba(0, 180, 216, 0.3);
+  --glow-violet: 0 0 20px rgba(139, 92, 246, 0.3);
+  --glow-gold: 0 0 20px rgba(251, 191, 36, 0.3);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  line-height: 1.6;
   font-weight: 400;
-
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #0f172a;
-
+  color: var(--text-primary);
+  background-color: var(--bg-void);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -21,79 +38,131 @@
 }
 
 body {
-  background-color: #0f172a;
-  color: white;
+  background-color: var(--bg-void);
+  color: var(--text-primary);
   min-width: 320px;
   min-height: 100vh;
+  overflow: hidden;
 }
 
 #root {
   min-height: 100vh;
 }
 
-::-webkit-scrollbar {
-  width: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: #1e293b;
-}
-
+/* === Custom Scrollbar === */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: #475569;
-  border-radius: 8px;
+  background: rgba(139, 92, 246, 0.3);
+  border-radius: 10px;
 }
-
 ::-webkit-scrollbar-thumb:hover {
-  background: #64748b;
+  background: rgba(139, 92, 246, 0.5);
 }
 
-@import "tailwindcss";
-
-:root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #0f172a;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+/* === Keyframe Animations === */
+@keyframes float-orb {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  25% { transform: translate(30px, -50px) scale(1.1); }
+  50% { transform: translate(-20px, -100px) scale(0.9); }
+  75% { transform: translate(50px, -30px) scale(1.05); }
 }
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+@keyframes float-orb-2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(-60px, 40px) scale(1.15); }
+  66% { transform: translate(40px, -60px) scale(0.85); }
 }
 
-body {
-  background-color: #0f172a;
-  color: white;
-  min-width: 320px;
-  min-height: 100vh;
+@keyframes float-orb-3 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  20% { transform: translate(80px, 30px) scale(1.2); }
+  40% { transform: translate(-30px, -80px) scale(0.9); }
+  60% { transform: translate(50px, 60px) scale(1.1); }
+  80% { transform: translate(-60px, 20px) scale(0.95); }
 }
 
-#root {
-  min-height: 100vh;
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-::-webkit-scrollbar {
-  width: 8px;
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
-::-webkit-scrollbar-track {
-  background: #1e293b;
+@keyframes pulse-ring {
+  0% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(1.8); opacity: 0; }
 }
 
-::-webkit-scrollbar-thumb {
-  background: #475569;
-  border-radius: 8px;
+@keyframes gradient-flow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: #64748b;
+@keyframes border-rotate {
+  0% { --angle: 0deg; }
+  100% { --angle: 360deg; }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes typing-dot {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30% { transform: translateY(-8px); opacity: 1; }
+}
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
+@keyframes upload-dash {
+  from { stroke-dashoffset: 0; }
+  to { stroke-dashoffset: -20; }
+}
+
+/* === Animation Utility Classes === */
+.animate-slide-up {
+  animation: slide-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease both;
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.04) 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
+
+/* === Glass Effect === */
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+}
+
+.glass-hover:hover {
+  background: var(--glass-hover);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+/* === Selection === */
+::selection {
+  background: rgba(139, 92, 246, 0.3);
+  color: #fff;
 }
