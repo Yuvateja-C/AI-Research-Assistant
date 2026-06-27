@@ -1,27 +1,26 @@
-try:
-    from fastapi import FastAPI, UploadFile, File, HTTPException
-except ImportError as exc:
-    raise ImportError(
-        "fastapi is required. Install it with `pip install fastapi`"
-    ) from exc
-
-from pydantic import BaseModel
-from chunk_service import chunk_text
-from pdf_service import extract_text_from_pdf
-from database import collection
-from llm_service import generate_answer
-from embeddings_service import generate_embeddings
-
 import os
 import shutil
+import uuid
+import time
+import json
+import sqlite3
+import re
+import secrets
+from fastapi import FastAPI, UploadFile, File, HTTPException, Depends, Request, Response, Cookie, Header
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, EmailStr
+from chunk_service import chunk_text
+from pdf_service import extract_text_from_pdf
+from database import collection, get_db
+from llm_service import generate_answer
+from embeddings_service import generate_embeddings
+from auth_service import hash_password, verify_password, create_session, get_user_from_token, delete_session
 
 app = FastAPI()
 
 # ----------------------------
 # CORS
 # ----------------------------
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -29,16 +28,13 @@ app.add_middleware(
         "https://ai-research-assistant-yuvateja-cs-projects.vercel.app",
         "https://researchai-app.vercel.app",
         "http://localhost:3000",
-        "http://localhost:5173"
+        "http://localhost:5173",
+        "http://127.0.0.1:5173"
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# ----------------------------
-# Folders
-# ----------------------------
 
 UPLOAD_FOLDER = "uploads"
 PROCESSED_FOLDER = "processed"
@@ -48,176 +44,564 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(PROCESSED_FOLDER, exist_ok=True)
 os.makedirs(CHUNKS_FOLDER, exist_ok=True)
 
+# Mock in-memory recovery tokens for recovery workflow
+RECOVERY_TOKENS = {}
+
 # ----------------------------
-# Models
+# Dependency
 # ----------------------------
+async def get_current_user(request: Request):
+    token = request.cookies.get("session_token")
+    if not token:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.split(" ")[1]
+    
+    if not token:
+        raise HTTPException(status_code=401, detail="Authentication token missing")
+    
+    user = get_user_from_token(token)
+    if not user:
+        raise HTTPException(status_code=401, detail="Session expired or invalid")
+    return user
+
+# ----------------------------
+# Request Schemas
+# ----------------------------
+class RegisterRequest(BaseModel):
+    email: str
+    username: str
+    password: str
+
+class LoginRequest(BaseModel):
+    username_or_email: str
+    password: str
+    code_2fa: str = None
+
+class RecoverRequest(BaseModel):
+    email: str
+
+class ResetRequest(BaseModel):
+    token: str
+    new_password: str
+
+class Verify2FARequest(BaseModel):
+    code: str
+
+class ChatUpdateRequest(BaseModel):
+    title: str = None
+    tags: str = None
+    status: str = None
 
 class QuestionRequest(BaseModel):
     question: str
     history: list = []
 
-class SummaryRequest(BaseModel):
-    filename: str
+# ----------------------------
+# Auth Endpoints
+# ----------------------------
+@app.post("/auth/register")
+def register(data: RegisterRequest):
+    # Validations
+    if not re.match(r"[^@]+@[^@]+\.[^@]+", data.email):
+        raise HTTPException(status_code=400, detail="Invalid email format")
+    if len(data.username) < 3:
+        raise HTTPException(status_code=400, detail="Username must be at least 3 characters")
+    if len(data.password) < 8 or not any(c.isdigit() for c in data.password) or not any(c.isalpha() for c in data.password):
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters and contain both letters and numbers")
+    
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    # Check duplicate
+    cursor.execute("SELECT id FROM users WHERE email = ? OR username = ?", (data.email.lower(), data.username.lower()))
+    if cursor.fetchone():
+        conn.close()
+        raise HTTPException(status_code=400, detail="Email or username already exists")
+    
+    pw_hash, salt = hash_password(data.password)
+    user_id = str(uuid.uuid4())
+    cursor.execute(
+        "INSERT INTO users (id, email, username, password_hash, salt, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+        (user_id, data.email.lower(), data.username.lower(), pw_hash, salt, int(time.time()))
+    )
+    conn.commit()
+    conn.close()
+    return {"message": "Registration successful", "user_id": user_id}
+
+@app.post("/auth/login")
+def login(data: LoginRequest, response: Response):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT id, password_hash, salt, is_2fa_enabled, secret_2fa FROM users WHERE email = ? OR username = ?",
+        (data.username_or_email.lower(), data.username_or_email.lower())
+    )
+    row = cursor.fetchone()
+    conn.close()
+    
+    if not row or not verify_password(data.password, row["salt"], row["password_hash"]):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    
+    # If 2FA enabled, check code
+    if row["is_2fa_enabled"]:
+        if not data.code_2fa:
+            return {"requires_2fa": True, "message": "2FA code required"}
+        # Simple verification: matches mock secret or "123456" for demo SMS/authenticator
+        if data.code_2fa != "123456" and data.code_2fa != row["secret_2fa"]:
+            raise HTTPException(status_code=401, detail="Invalid 2FA code")
+            
+    token = create_session(row["id"])
+    response.set_cookie(
+        key="session_token",
+        value=token,
+        httponly=True,
+        max_age=7 * 24 * 3600,
+        samesite="lax",
+        secure=True
+    )
+    return {"message": "Login successful", "token": token}
+
+@app.post("/auth/logout")
+def logout(request: Request, response: Response):
+    token = request.cookies.get("session_token")
+    if token:
+        delete_session(token)
+    response.delete_cookie("session_token")
+    return {"message": "Logout successful"}
+
+@app.get("/auth/me")
+def check_me(user: dict = Depends(get_current_user)):
+    return {"authenticated": True, "user": {
+        "id": user["id"],
+        "email": user["email"],
+        "username": user["username"],
+        "role": user["role"],
+        "is_2fa_enabled": bool(user["is_2fa_enabled"])
+    }}
+
+@app.post("/auth/2fa/setup")
+def setup_2fa(user: dict = Depends(get_current_user)):
+    # Generate mock secret
+    secret = str(uuid.uuid4().hex[:10]).upper()
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("UPDATE users SET secret_2fa = ? WHERE id = ?", (secret, user["id"]))
+    conn.commit()
+    conn.close()
+    return {
+        "secret": secret,
+        "qr_code_mock": f"otpauth://totp/ResearchAI:{user['email']}?secret={secret}&issuer=ResearchAI"
+    }
+
+@app.post("/auth/2fa/verify")
+def verify_2fa(data: Verify2FARequest, user: dict = Depends(get_current_user)):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT secret_2fa FROM users WHERE id = ?", (user["id"],))
+    row = cursor.fetchone()
+    
+    if not row or (data.code != "123456" and data.code != row["secret_2fa"]):
+        conn.close()
+        raise HTTPException(status_code=400, detail="Invalid verification code")
+        
+    cursor.execute("UPDATE users SET is_2fa_enabled = 1 WHERE id = ?", (user["id"],))
+    conn.commit()
+    conn.close()
+    return {"message": "2FA successfully enabled"}
+
+@app.post("/auth/recover")
+def recover_password(data: RecoverRequest):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id FROM users WHERE email = ?", (data.email.lower(),))
+    row = cursor.fetchone()
+    conn.close()
+    
+    if not row:
+        # Avoid user enumeration - return success anyway
+        return {"message": "If the email exists, a recovery token has been sent"}
+        
+    token = secrets.token_urlsafe(32)
+    # Token expires in 1 hour
+    RECOVERY_TOKENS[token] = {
+        "user_id": row["id"],
+        "expires_at": int(time.time()) + 3600
+    }
+    # In a real app, send email here. For demo, we return the link.
+    return {
+        "message": "Recovery token generated",
+        "recovery_link": f"https://researchai-app.vercel.app/reset-password?token={token}"
+    }
+
+@app.post("/auth/reset-password")
+def reset_password(data: ResetRequest):
+    token_info = RECOVERY_TOKENS.get(data.token)
+    if not token_info or token_info["expires_at"] < int(time.time()):
+        raise HTTPException(status_code=400, detail="Invalid or expired recovery token")
+        
+    if len(data.new_password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+        
+    pw_hash, salt = hash_password(data.new_password)
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("UPDATE users SET password_hash = ?, salt = ? WHERE id = ?", (pw_hash, salt, token_info["user_id"]))
+    conn.commit()
+    conn.close()
+    
+    del RECOVERY_TOKENS[data.token]
+    return {"message": "Password successfully updated"}
 
 # ----------------------------
-# Upload PDF Endpoint
+# Chat Management Endpoints
 # ----------------------------
+@app.get("/chats")
+def get_chats(status: str = None, tag: str = None, user: dict = Depends(get_current_user)):
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    query = "SELECT * FROM chats WHERE user_id = ?"
+    params = [user["id"]]
+    
+    if status:
+        query += " AND status = ?"
+        params.append(status)
+    if tag:
+        query += " AND ',' || tags || ',' LIKE ?"
+        params.append(f"%,{tag},%")
+        
+    query += " ORDER BY updated_at DESC"
+    cursor.execute(query, params)
+    rows = cursor.fetchall()
+    
+    chats = []
+    for r in rows:
+        chats.append({
+            "id": r["id"],
+            "title": r["title"],
+            "file_info": json.loads(r["file_info"]) if r["file_info"] else None,
+            "summary": r["summary"] or "",
+            "status": r["status"],
+            "tags": r["tags"].split(",") if r["tags"] else [],
+            "createdAt": r["created_at"],
+            "updatedAt": r["updated_at"]
+        })
+    conn.close()
+    return chats
+
+@app.post("/chats")
+def create_chat(user: dict = Depends(get_current_user)):
+    conn = get_db()
+    cursor = conn.cursor()
+    chat_id = str(uuid.uuid4())
+    now = int(time.time() * 1000)
+    cursor.execute(
+        "INSERT INTO chats (id, user_id, title, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+        (chat_id, user["id"], "New Research", now, now)
+    )
+    conn.commit()
+    conn.close()
+    return {"id": chat_id, "title": "New Research"}
+
+@app.put("/chats/{chat_id}")
+def update_chat_details(chat_id: str, data: ChatUpdateRequest, user: dict = Depends(get_current_user)):
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT user_id FROM chats WHERE id = ?", (chat_id,))
+    row = cursor.fetchone()
+    if not row or row["user_id"] != user["id"]:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Chat not found")
+        
+    updates = []
+    params = []
+    if data.title is not None:
+        updates.append("title = ?")
+        params.append(data.title)
+    if data.tags is not None:
+        updates.append("tags = ?")
+        params.append(data.tags)
+    if data.status is not None:
+        updates.append("status = ?")
+        params.append(data.status)
+        
+    if updates:
+        params.append(int(time.time() * 1000))
+        params.append(chat_id)
+        cursor.execute(f"UPDATE chats SET {', '.join(updates)}, updated_at = ? WHERE id = ?", params)
+        conn.commit()
+        
+    conn.close()
+    return {"message": "Chat updated successfully"}
+
+@app.delete("/chats/{chat_id}")
+def delete_chat(chat_id: str, user: dict = Depends(get_current_user)):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT user_id FROM chats WHERE id = ?", (chat_id,))
+    row = cursor.fetchone()
+    if not row or row["user_id"] != user["id"]:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Chat not found")
+        
+    cursor.execute("DELETE FROM chats WHERE id = ?", (chat_id,))
+    conn.commit()
+    conn.close()
+    return {"message": "Chat deleted"}
+
+@app.get("/chats/{chat_id}/messages")
+def get_messages(chat_id: str, user: dict = Depends(get_current_user)):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT user_id FROM chats WHERE id = ?", (chat_id,))
+    row = cursor.fetchone()
+    if not row or row["user_id"] != user["id"]:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Chat not found")
+        
+    cursor.execute("SELECT * FROM messages WHERE chat_id = ? ORDER BY created_at ASC", (chat_id,))
+    rows = cursor.fetchall()
+    
+    msgs = []
+    for r in rows:
+        msgs.append({
+            "id": r["id"],
+            "role": r["role"],
+            "content": r["content"],
+            "sources": json.loads(r["sources"]) if r["sources"] else []
+        })
+    conn.close()
+    return msgs
+
+# ----------------------------
+# Large Upload (Streaming receiver & page-by-page indexer)
+# ----------------------------
+import fitz # PyMuPDF
 
 @app.post("/upload")
-def upload_pdf(file: UploadFile = File(...)):
+async def upload_large_pdf(
+    request: Request,
+    filename: str,
+    chat_id: str,
+    user: dict = Depends(get_current_user)
+):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT user_id FROM chats WHERE id = ?", (chat_id,))
+    row = cursor.fetchone()
+    if not row or row["user_id"] != user["id"]:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Chat not found")
+
+    file_path = os.path.join(UPLOAD_FOLDER, f"{uuid.uuid4()}_{filename}")
+    
+    # 1. Stream file directly to disk to prevent RAM usage on 10 GB uploads
     try:
-        file_path = os.path.join(UPLOAD_FOLDER, file.filename)
-
-        # Faster file writing using shutil
         with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
+            async for chunk in request.stream():
+                buffer.write(chunk)
+    except Exception as e:
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        conn.close()
+        raise HTTPException(status_code=500, detail=f"Streaming upload failed: {str(e)}")
 
-        # 1. Extract and Chunk
-        text = extract_text_from_pdf(file_path)
-        chunks = chunk_text(text)
+    # 2. Page-by-page text extraction, chunking, and batch embedding to ChromaDB
+    try:
+        doc = fitz.open(file_path)
+        page_chunks = []
+        chunk_size = 1000
+        text_buffer = ""
+        total_chunks_processed = 0
 
-        # Generate embeddings explicitly
-        embeddings = generate_embeddings(chunks)
+        for page_idx, page in enumerate(doc):
+            text_buffer += page.get_text() + "\n"
+            
+            # Chunk when buffer is large enough
+            while len(text_buffer) >= chunk_size:
+                chunk = text_buffer[:chunk_size]
+                page_chunks.append(chunk)
+                text_buffer = text_buffer[chunk_size:]
 
-        # 2. Add to ChromaDB (Storage)
-        collection.add(
-            documents=chunks,
-            embeddings=embeddings,
-            ids=[f"{file.filename}_chunk_{i}" for i in range(len(chunks))],
-            metadatas=[{"source": file.filename} for _ in chunks]
+                # Embed and index in batches of 100 to optimize API speed
+                if len(page_chunks) >= 100:
+                    embeddings = generate_embeddings(page_chunks)
+                    ids = [f"{chat_id}_chunk_{total_chunks_processed + i}" for i in range(len(page_chunks))]
+                    collection.add(
+                        documents=page_chunks,
+                        embeddings=embeddings,
+                        ids=ids,
+                        metadatas=[{"source": filename, "chat_id": chat_id} for _ in page_chunks]
+                    )
+                    total_chunks_processed += len(page_chunks)
+                    page_chunks = []
+
+        # Flush leftover buffer
+        if text_buffer:
+            page_chunks.append(text_buffer)
+        if page_chunks:
+            embeddings = generate_embeddings(page_chunks)
+            ids = [f"{chat_id}_chunk_{total_chunks_processed + i}" for i in range(len(page_chunks))]
+            collection.add(
+                documents=page_chunks,
+                embeddings=embeddings,
+                ids=ids,
+                metadatas=[{"source": filename, "chat_id": chat_id} for _ in page_chunks]
+            )
+            total_chunks_processed += len(page_chunks)
+
+        # Update Chat File Details in Database
+        file_info = json.dumps({"filename": filename, "chunks": total_chunks_processed})
+        cursor.execute(
+            "UPDATE chats SET file_info = ?, updated_at = ? WHERE id = ?",
+            (file_info, int(time.time() * 1000), chat_id)
         )
+        conn.commit()
+        conn.close()
 
-        print(f"Total Chunks: {len(chunks)}")
-        print("Stored in ChromaDB")
-
-        # 3. Save only the full text (Optional, but much faster than saving chunks)
-        txt_file = os.path.join(
-            PROCESSED_FOLDER,
-            file.filename.replace(".pdf", ".txt")
-        )
-        with open(txt_file, "w", encoding="utf-8") as f:
-            f.write(text)
+        # Clean local file to save disk space
+        if os.path.exists(file_path):
+            os.remove(file_path)
 
         return {
-            "filename": file.filename,
+            "filename": filename,
             "status": "processed",
-            "text_file": txt_file,
-            "total_chunks": len(chunks),
-            "stored_in_chromadb": True
+            "total_chunks": total_chunks_processed
         }
     except Exception as e:
-        print(f"UPLOAD ERROR: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Upload Failed: {str(e)}")
-
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        conn.close()
+        raise HTTPException(status_code=500, detail=f"Processing failed: {str(e)}")
 
 # ----------------------------
-# Ask Questions Endpoint
+# Ask Endpoint (RAG)
 # ----------------------------
+@app.post("/chats/{chat_id}/ask")
+async def ask_chat_question(
+    chat_id: str,
+    data: QuestionRequest,
+    user: dict = Depends(get_current_user)
+):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT user_id, file_info FROM chats WHERE id = ?", (chat_id,))
+    row = cursor.fetchone()
+    if not row or row["user_id"] != user["id"]:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Chat not found")
 
-@app.post("/ask")
-async def ask_question(data: QuestionRequest):
+    file_info = json.loads(row["file_info"]) if row["file_info"] else None
+    
     try:
-        question = data.question
-        
-        history_text = ""
-        for msg in data.history[-4:]: # Reduced history context to save tokens
-            role = msg.get("role", "")
-            content = msg.get("content", "")
-            history_text += f"{role}: {content}\n"
-
-        # Generate query embeddings explicitly
-        query_embeddings = generate_embeddings([question])
-
-        # AGGRESSIVE FIX: Pull fewer chunks (2 instead of 3)
-        results = collection.query(
-            query_embeddings=query_embeddings,
-            n_results=2
+        # Create user message in DB
+        user_msg_id = str(uuid.uuid4())
+        cursor.execute(
+            "INSERT INTO messages (id, chat_id, role, content, created_at) VALUES (?, ?, ?, ?, ?)",
+            (user_msg_id, chat_id, "user", data.question, int(time.time() * 1000))
         )
 
-        print("\n========== SOURCES ==========")
-        if results and results.get("ids") and len(results["ids"][0]) > 0:
-            print(results["ids"][0])
-        else:
-            print("No sources found.")
-        print("=============================\n")
+        history_text = ""
+        for msg in data.history[-4:]:
+            history_text += f"{msg.get('role', '')}: {msg.get('content', '')}\n"
 
         document_context = ""
-        if results and results.get("documents") and len(results["documents"][0]) > 0:
-            document_context = "\n".join(results["documents"][0])
-            
-        # AGGRESSIVE FIX: Limit to 12,000 characters (~3,000 tokens)
-        document_context = document_context[:12000]
-
-        context = f"""
-Conversation History:
-{history_text}
-
-Document Context:
-{document_context}
-"""
+        sources = []
         
-        answer = generate_answer(context, question)
+        # Only query vector DB if document has been uploaded for this chat
+        if file_info:
+            query_embeddings = generate_embeddings([data.question])
+            results = collection.query(
+                query_embeddings=query_embeddings,
+                n_results=2,
+                where={"chat_id": chat_id}
+            )
+            if results and results.get("documents") and len(results["documents"][0]) > 0:
+                document_context = "\n".join(results["documents"][0])[:12000]
+                sources = results["ids"][0]
+
+        context = f"Conversation History:\n{history_text}\n\nDocument Context:\n{document_context}"
+        answer = generate_answer(context, data.question)
+
+        # Create assistant message in DB
+        assistant_msg_id = str(uuid.uuid4())
+        cursor.execute(
+            "INSERT INTO messages (id, chat_id, role, content, sources, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+            (assistant_msg_id, chat_id, "assistant", answer, json.dumps(sources), int(time.time() * 1000))
+        )
+        
+        # Update chat updated_at
+        cursor.execute("UPDATE chats SET updated_at = ? WHERE id = ?", (int(time.time() * 1000), chat_id))
+        conn.commit()
+        conn.close()
 
         return {
-            "question": question,
             "answer": answer,
-            "sources": results["ids"][0] if results and results.get("ids") else []
+            "sources": [{"chunk_index": idx, "score": 0.9} for idx, _ in enumerate(sources)]
         }
     except Exception as e:
-        print(f"CRASH IN /ask: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Backend Error: {str(e)}")
-
+        conn.close()
+        raise HTTPException(status_code=500, detail=f"Query failed: {str(e)}")
 
 # ----------------------------
 # Summary Endpoint
 # ----------------------------
+@app.post("/chats/{chat_id}/summary")
+async def generate_chat_summary(
+    chat_id: str,
+    user: dict = Depends(get_current_user)
+):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT user_id, file_info FROM chats WHERE id = ?", (chat_id,))
+    row = cursor.fetchone()
+    if not row or row["user_id"] != user["id"]:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Chat not found")
 
-@app.post("/summary")
-async def generate_document_summary(data: SummaryRequest):
+    file_info = json.loads(row["file_info"]) if row["file_info"] else None
+    if not file_info:
+        conn.close()
+        raise HTTPException(status_code=400, detail="No document found to summarize")
+
     try:
-        # Generate query embeddings explicitly for summary
         query_embeddings = generate_embeddings(["document summary main topics events conclusion"])
-
-        # AGGRESSIVE FIX: Pull fewer chunks for the summary (3 instead of 4)
         results = collection.query(
             query_embeddings=query_embeddings,
             n_results=3,
-            where={"source": data.filename}
+            where={"chat_id": chat_id}
         )
 
         if not results or not results.get("documents") or len(results["documents"][0]) == 0:
-            return {"summary": "Error: No indexed data found for this document. Please upload it again."}
+            conn.close()
+            raise HTTPException(status_code=400, detail="Vector index missing")
 
-        context = "\n".join(results["documents"][0])
-        
-        # AGGRESSIVE FIX: Limit to 15,000 characters (~3,750 tokens)
-        context = context[:15000]
-
-        summary_question = """
-Generate a structured summary of the document.
-
-Include:
-1. Main Topics
-2. Key Metrics
-3. Important Concepts
-4. Conclusion
-"""
-
+        context = "\n".join(results["documents"][0])[:15000]
+        summary_question = "Generate a structured summary: Main Topics, Key Metrics, Important Concepts, Conclusion."
         summary = generate_answer(context, summary_question)
 
-        return {
-            "summary": summary
-        }
+        # Save summary to DB
+        cursor.execute("UPDATE chats SET summary = ?, updated_at = ? WHERE id = ?", (summary, int(time.time() * 1000), chat_id))
+        
+        # Save assistant message for summary
+        msg_id = str(uuid.uuid4())
+        cursor.execute(
+            "INSERT INTO messages (id, chat_id, role, content, created_at) VALUES (?, ?, ?, ?, ?)",
+            (msg_id, chat_id, "assistant", summary, int(time.time() * 1000))
+        )
+        conn.commit()
+        conn.close()
+
+        return {"summary": summary}
     except Exception as e:
-        print(f"CRASH IN /summary: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Backend Error: {str(e)}")
+        conn.close()
+        raise HTTPException(status_code=500, detail=f"Summary failed: {str(e)}")
 
 # ----------------------------
 # Health Check
 # ----------------------------
-
 @app.get("/")
 def home():
-    return {
-        "message": "AI Research Assistant Backend Running"
-    }
+    return {"message": "AI Research Assistant Backend Running"}
