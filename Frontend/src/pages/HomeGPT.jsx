@@ -5,6 +5,7 @@ import jsPDF from "jspdf";
 /*  CONSTANTS & HELPERS                         */
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 const API = (import.meta.env.VITE_API_URL || "https://api-research-assistant-bseo.onrender.com").replace(/\/+$/, "");
+const uid = () => Math.random().toString(36).substring(2, 11);
 
 const relativeTime = (ts) => {
   if (!ts) return "";
