@@ -1,0 +1,14 @@
+# ResearchAI — Intelligent Document Analysis Platform
+
+ResearchAI is a secure, vector-powered platform designed for academic researchers, engineers, and analysts to upload PDF documents and extract summaries, key metrics, and answers.
+
+## Architecture and Core Functionality
+- **Vite React Frontend SPA**: Handles authentication (with optional 2FA), workspace management, chat context filtering, document uploading, and real-time response streaming.
+- **FastAPI Backend Services**: Runs local PDF parsing, embedding vectorization with ChromaDB, chunk retrieval, and LLM text generation.
+- **Database Engine**: Uses SQLite for session management, chats logs, and message histories.
+
+## Public Endpoint Targets
+- Main Workspace: https://researchai-app.vercel.app/
+- API Backend Host: https://api-research-assistant-bseo.onrender.com/
+- Privacy Policy: https://researchai-app.vercel.app/privacy
+- Terms of Service: https://researchai-app.vercel.app/terms

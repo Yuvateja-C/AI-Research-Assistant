@@ -43,6 +43,228 @@
     <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+    <style>
+      :root {
+        --bg-root: #0b0b10;
+        --bg-surface: #14141c;
+        --border: rgba(255, 255, 255, 0.06);
+        --text: #ffffff;
+        --text-2: #a1a1aa;
+        --text-3: #71717a;
+        --accent: #7c5bf5;
+        --accent-2: #3b82f6;
+        --gold: #f59e0b;
+        --grad: linear-gradient(135deg, #7c5bf5 0%, #3b82f6 100%);
+      }
+      body {
+        margin: 0;
+        font-family: 'Inter', -apple-system, sans-serif;
+        background-color: var(--bg-root);
+        color: var(--text);
+        overflow-x: hidden;
+      }
+      .container {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 40px 20px;
+        text-align: center;
+      }
+      .logo-box {
+        width: 56px;
+        height: 56px;
+        border-radius: 16px;
+        background: var(--grad);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 20px;
+        box-shadow: 0 0 30px rgba(124, 91, 245, 0.35);
+      }
+      .hero-title {
+        font-size: 32px;
+        font-weight: 800;
+        background: linear-gradient(135deg, var(--text), var(--text-2));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 12px;
+        letter-spacing: -0.03em;
+      }
+      .hero-desc {
+        font-size: 16px;
+        color: var(--text-2);
+        max-width: 520px;
+        margin: 0 auto 36px;
+        line-height: 1.7;
+      }
+      .trust-badges {
+        display: flex;
+        gap: 16px;
+        justify-content: center;
+        margin-bottom: 36px;
+        flex-wrap: wrap;
+      }
+      .badge {
+        font-size: 12px;
+        color: var(--text-3);
+        background: var(--bg-surface);
+        padding: 6px 14px;
+        border-radius: 20px;
+        border: 1px solid var(--border);
+      }
+      .steps-flow {
+        display: flex;
+        justify-content: center;
+        gap: 20px;
+        flex-wrap: wrap;
+        margin-bottom: 40px;
+      }
+      .step-card {
+        flex: 1;
+        min-width: 180px;
+        background: rgba(255, 255, 255, 0.01);
+        padding: 20px;
+        border-radius: 14px;
+        border: 1px solid var(--border);
+      }
+      .step-num {
+        font-size: 24px;
+        font-weight: bold;
+        color: var(--accent);
+        margin-bottom: 8px;
+      }
+      .step-title {
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--text);
+      }
+      .step-desc {
+        font-size: 12px;
+        color: var(--text-3);
+        margin-top: 6px;
+        line-height: 1.5;
+      }
+      .features-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 16px;
+        margin-bottom: 48px;
+      }
+      .feat-card {
+        padding: 24px 20px;
+        border-radius: 16px;
+        background: var(--bg-surface);
+        border: 1px solid var(--border);
+        text-align: left;
+      }
+      .feat-icon-wrap {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 14px;
+      }
+      .feat-title {
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--text);
+        margin-bottom: 6px;
+      }
+      .feat-desc {
+        font-size: 12.5px;
+        color: var(--text-2);
+        line-height: 1.65;
+      }
+      .reviews-section {
+        margin-bottom: 48px;
+        text-align: left;
+      }
+      .reviews-header {
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--text);
+        margin-bottom: 16px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      .reviews-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 16px;
+      }
+      .review-card {
+        padding: 16px;
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.01);
+        border: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+      }
+      .review-text {
+        font-size: 13px;
+        color: var(--text-2);
+        font-style: italic;
+        line-height: 1.6;
+        margin: 0 0 12px;
+      }
+      .review-author {
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--text);
+      }
+      .review-role {
+        font-size: 10.5px;
+        color: var(--text-3);
+      }
+      .cta-btn {
+        padding: 16px 36px;
+        border-radius: 14px;
+        border: none;
+        background: var(--grad);
+        color: #fff;
+        font-size: 16px;
+        font-weight: 700;
+        cursor: pointer;
+        box-shadow: 0 4px 20px rgba(124, 91, 245, 0.4);
+        margin-bottom: 12px;
+        display: inline-block;
+        text-decoration: none;
+      }
+      .cta-lock-info {
+        font-size: 12px;
+        color: var(--text-3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+      }
+      .static-footer {
+        display: flex;
+        gap: 14px;
+        justify-content: center;
+        align-items: center;
+        margin-top: 48px;
+        padding-top: 20px;
+        border-top: 1px solid var(--border);
+        flex-wrap: wrap;
+      }
+      .footer-text {
+        font-size: 11px;
+        color: var(--text-3);
+      }
+      .footer-link {
+        font-size: 11px;
+        color: var(--accent);
+        cursor: pointer;
+        text-decoration: underline;
+      }
+    </style>
+
     <!-- Structured Data (JSON-LD) -->
     <script type="application/ld+json">
     {
@@ -93,7 +315,135 @@
     </script>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- STATIC LANDING PAGE FOR BOT/CRAWLER SSR EMULATION -->
+      <div class="container">
+        <div class="logo-box">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="#ffffff">
+            <path d="M12 1l2.5 7.5L22 12l-7.5 2.5L12 22l-2.5-7.5L2 12l7.5-2.5z"/>
+          </svg>
+        </div>
+
+        <h1 class="hero-title">Stop reading. Start asking.</h1>
+        <p class="hero-desc">
+          Upload your PDF study materials and research papers. Extract insights, statistics, and summaries in seconds.
+        </p>
+
+        <div class="trust-badges">
+          <span class="badge">🔥 10,000+ documents analyzed</span>
+          <span class="badge">👥 Trusted by 500+ researchers</span>
+        </div>
+
+        <!-- 3-Step Flow Diagram -->
+        <div class="steps-flow">
+          <div class="step-card">
+            <div class="step-num">1</div>
+            <div class="step-title">Upload Document</div>
+            <div class="step-desc">Upload PDF documents up to 10 GB.</div>
+          </div>
+          <div class="step-card">
+            <div class="step-num">2</div>
+            <div class="step-title">AI Vector Indexing</div>
+            <div class="step-desc">Document contents are parsed into vector search chunks.</div>
+          </div>
+          <div class="step-card">
+            <div class="step-num">3</div>
+            <div class="step-title">Query Workspace</div>
+            <div class="step-desc">Ask questions, get summaries, and export reports.</div>
+          </div>
+        </div>
+
+        <!-- Features Grid -->
+        <div class="features-grid">
+          <div class="feat-card">
+            <div class="feat-icon-wrap" style="background: rgba(124, 91, 245, 0.1); color: var(--accent);">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+            </div>
+            <div class="feat-title">10 GB Upload Capacity</div>
+            <div class="feat-desc">Process massive PDF books, documents, and research archives dynamically.</div>
+          </div>
+
+          <div class="feat-card">
+            <div class="feat-icon-wrap" style="background: rgba(59, 130, 246, 0.1); color: var(--accent-2);">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2C8.13 2 5 5.13 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.87-3.13-7-7-7z"/>
+                <line x1="9" y1="21" x2="15" y2="21"/><line x1="10" y1="24" x2="14" y2="24"/>
+              </svg>
+            </div>
+            <div class="feat-title">Contextual RAG Retrieval</div>
+            <div class="feat-desc">Interact with natural language referencing source references in real-time.</div>
+          </div>
+
+          <div class="feat-card">
+            <div class="feat-icon-wrap" style="background: rgba(245, 158, 11, 0.1); color: var(--gold);">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+              </svg>
+            </div>
+            <div class="feat-title">Categorization Tags</div>
+            <div class="feat-desc">Organize your document workspaces by filterable and searchable tags.</div>
+          </div>
+
+          <div class="feat-card">
+            <div class="feat-icon-wrap" style="background: rgba(34, 197, 94, 0.1); color: #22c55e;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              </svg>
+            </div>
+            <div class="feat-title">Secure Session Controls</div>
+            <div class="feat-desc">Your credentials and research data are protected by strict session authentication.</div>
+          </div>
+        </div>
+
+        <!-- User Testimonials Section -->
+        <div class="reviews-section">
+          <h3 class="reviews-header">User Reviews</h3>
+          <div class="reviews-grid">
+            <div class="review-card">
+              <p class="review-text">"ResearchAI reduced my literature review cycle by days. I can ask questions directly across full-text textbooks."</p>
+              <div>
+                <div class="review-author">Dr. Sarah J.</div>
+                <div class="review-role">Lead Academic Researcher</div>
+              </div>
+            </div>
+            <div class="review-card">
+              <p class="review-text">"Being able to upload large 500MB technical manuals and query them with instant responses is a game changer."</p>
+              <div>
+                <div class="review-author">Marcus K.</div>
+                <div class="review-role">Systems Engineer</div>
+              </div>
+            </div>
+            <div class="review-card">
+              <p class="review-text">"Perfect interface! The tagging structure keeps my clinical studies organized, and sifting through them is seamless."</p>
+              <div>
+                <div class="review-author">Elena R.</div>
+                <div class="review-role">Medical Analyst</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Call To Action -->
+        <div>
+          <a href="#" class="cta-btn">Analyze a document in seconds</a>
+          <div class="cta-lock-info">
+            <span>🔒</span>
+            <i>Your documents are processed securely and never stored permanently. Data is deleted after analysis.</i>
+          </div>
+        </div>
+
+        <!-- Static Footer -->
+        <footer class="static-footer">
+          <span class="footer-text">© 2026 ResearchAI. All rights reserved.</span>
+          <span style="color: var(--text-3);">·</span>
+          <a href="/privacy" class="footer-link">Privacy Policy</a>
+          <span style="color: var(--text-3);">·</span>
+          <a href="/terms" class="footer-link">Terms of Service</a>
+        </footer>
+      </div>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
