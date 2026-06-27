@@ -9,8 +9,12 @@ collection = client.get_or_create_collection(name="research_docs")
 SQLITE_DB = "research_assistant.db"
 
 def get_db():
-    conn = sqlite3.connect(SQLITE_DB)
+    conn = sqlite3.connect(SQLITE_DB, timeout=30.0)
     conn.row_factory = sqlite3.Row
+    try:
+        conn.execute("PRAGMA journal_mode=WAL")
+    except sqlite3.OperationalError:
+        pass
     return conn
 
 def init_db():

@@ -391,21 +391,41 @@ export default function HomeGPT() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, username, password })
       });
-      const d = await r.json();
+      
+      let d = {};
+      try {
+        d = await r.json();
+      } catch {
+        d = { detail: `Server error (${r.status}). Please try again later.` };
+      }
+
       if (!r.ok) {
         setAuthError(d.detail || "Registration failed");
         return;
       }
+      
       const loginRes = await fetch(`${API}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username_or_email: email, password })
       });
-      const loginData = await loginRes.json();
+      
+      let loginData = {};
+      try {
+        loginData = await loginRes.json();
+      } catch {
+        loginData = { detail: "Automatic login failed. Please sign in manually." };
+      }
+
+      if (!loginRes.ok) {
+        setAuthError(loginData.detail || "Automatic login failed");
+        return;
+      }
+
       localStorage.setItem("session_token", loginData.token);
       setToken(loginData.token);
-    } catch {
-      setAuthError("Registration failed. Verify fields.");
+    } catch (err) {
+      setAuthError("Registration failed: " + (err.message || "Connection error"));
     }
   };
 
