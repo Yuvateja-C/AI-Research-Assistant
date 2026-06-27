@@ -1,1 +1,7 @@
-.envvenv/__pycache__/uploads/processed/chroma_db/
+.env
+venv/
+__pycache__/
+uploads/
+processed/
+chroma_db/
+local_model/

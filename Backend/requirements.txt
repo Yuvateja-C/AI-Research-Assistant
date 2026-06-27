@@ -6,4 +6,5 @@ pypdf
 python-multipart
 python-dotenv
 PyMuPDF
+requests
 google-genai
