@@ -1,14 +1,20 @@
+import google.generativeai as genai
 import os
-from sentence_transformers import SentenceTransformer
 
-model_dir = os.path.join(os.path.dirname(__file__), "local_model")
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
-if os.path.exists(model_dir):
-    print("Loading SentenceTransformer model from local storage...")
-    model = SentenceTransformer(model_dir)
-else:
-    print("Loading SentenceTransformer model from Hugging Face...")
-    model = SentenceTransformer("all-MiniLM-L6-v2")
+MODEL = "models/embedding-001"
 
-def generate_embeddings(chunks):
-    return model.encode(chunks).tolist()
+def generate_embeddings(texts):
+    embeddings = []
+
+    for text in texts:
+        response = genai.embed_content(
+            model=MODEL,
+            content=text,
+            task_type="retrieval_document"
+        )
+
+        embeddings.append(response["embedding"])
+
+    return embeddings
