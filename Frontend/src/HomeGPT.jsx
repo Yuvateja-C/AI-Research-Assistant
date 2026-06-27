@@ -1144,10 +1144,10 @@ export default function HomeGPT() {
         <div style={{ display:"flex", alignItems:"center", gap:6 }}>
           <select value={selectedTagFilter} onChange={e => setSelectedTagFilter(e.target.value)} style={{
             width:"100%", padding:"6px 10px", borderRadius:8, background:"var(--bg-surface)", border:"1px solid var(--border)",
-            color:"var(--text-2)", fontSize:11, outline:"none", cursor:"pointer"
+            color:"#ffffff", fontSize:11, outline:"none", cursor:"pointer"
           }}>
             {allAvailableTags.map(t => (
-              <option key={t} value={t}>{t}</option>
+              <option key={t} value={t} style={{ background: "#1a1a24", color: "#ffffff" }}>{t}</option>
             ))}
           </select>
         </div>
@@ -1714,14 +1714,14 @@ export default function HomeGPT() {
               </button>
 
               <select value={persona} onChange={e => setPersona(e.target.value)} style={{
-                background: "rgba(255,255,255,0.03)", border: "1px solid var(--border)", color: "var(--text-2)",
+                background: "rgba(255,255,255,0.03)", border: "1px solid var(--border)", color: "#ffffff",
                 fontSize: 11, padding: "0 6px", borderRadius: 10, outline: "none", cursor: "pointer",
                 marginRight: 4, height: 36, fontFamily: "inherit", maxWidth: isMobile ? 80 : 160
               }} aria-label="Select AI persona prompt context">
-                <option value="default" style={{ background:"var(--bg-surface)" }}>🤖 Default</option>
-                <option value="critique" style={{ background:"var(--bg-surface)" }}>🔬 Critique</option>
-                <option value="summary" style={{ background:"var(--bg-surface)" }}>📊 Summary</option>
-                <option value="statistics" style={{ background:"var(--bg-surface)" }}>📈 Stats</option>
+                <option value="default" style={{ background: "#1a1a24", color: "#ffffff" }}>🤖 Default</option>
+                <option value="critique" style={{ background: "#1a1a24", color: "#ffffff" }}>🔬 Critique</option>
+                <option value="summary" style={{ background: "#1a1a24", color: "#ffffff" }}>📊 Summary</option>
+                <option value="statistics" style={{ background: "#1a1a24", color: "#ffffff" }}>📈 Stats</option>
               </select>
 
               <textarea ref={inputRef} value={question} onChange={e => setQuestion(e.target.value)}
