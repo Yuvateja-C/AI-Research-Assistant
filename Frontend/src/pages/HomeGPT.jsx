@@ -217,6 +217,7 @@ const Welcome = ({ onUpload, fileRef }) => (
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 export default function HomeGPT() {
   const sidebarW = 310;
+  const RAZORPAY_KEY_ID = import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_test_T6fcPFjRPRx3FQ";
   /* Page view routing */
   const [activePage, setActivePage] = useState("workspace"); // workspace, privacy, terms
   const [persona, setPersona] = useState("default");
@@ -482,7 +483,8 @@ export default function HomeGPT() {
     setIsUpgrading(true);
 
     try {
-      const r = await fetch(`${API}/auth/upgrade`, {
+      // 1. Create order on the backend
+      const r = await fetch(`${API}/auth/razorpay/create-order`, {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
@@ -491,22 +493,102 @@ export default function HomeGPT() {
         body: JSON.stringify({ plan: selectedPlan })
       });
       
-      if (r.ok) {
-        const data = await r.json();
-        setUser(prev => prev ? { ...prev, tier: "pro", subscription_expires_at: data.subscription_expires_at } : null);
-        setUpgradeModalOpen(false);
-        alert("🎉 Subscription activated successfully! Thank you for upgrading to Research Pro.");
-        setCardNum(""); setCardExp(""); setCardCvc(""); setCardName(""); setUpiId("");
-      } else {
-        setUpgradeError("Upgrade failed. Please verify credentials.");
+      if (!r.ok) {
+        const errData = await r.json();
+        throw new Error(errData.detail || "Failed to initiate payment");
       }
-    } catch {
-      const expiry = Date.now() + (selectedPlan === "1_month" ? 30 : selectedPlan === "5_months" ? 150 : 365) * 24 * 3600 * 1000;
-      setUser(prev => prev ? { ...prev, tier: "pro", subscription_expires_at: expiry } : null);
-      setUpgradeModalOpen(false);
-      alert("🎉 Simulated subscription activated! Your account is upgraded to Research Pro.");
-      setCardNum(""); setCardExp(""); setCardCvc(""); setCardName(""); setUpiId("");
-    } finally {
+      
+      const order = await r.json();
+      
+      // If backend says it is simulated (fallback when keys are missing)
+      if (order.simulated) {
+        setTimeout(() => {
+          fetch(`${API}/auth/razorpay/verify`, {
+            method: "POST",
+            headers: { 
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${token}` 
+            },
+            body: JSON.stringify({
+              razorpay_order_id: order.order_id,
+              razorpay_payment_id: "pay_mock_123456",
+              razorpay_signature: "sig_mock_123456",
+              plan: selectedPlan
+            })
+          }).then(res => res.json()).then(data => {
+            setUser(prev => prev ? { ...prev, tier: "pro", subscription_expires_at: data.subscription_expires_at } : null);
+            setUpgradeModalOpen(false);
+            alert("🎉 Simulated subscription activated! Your account is upgraded to Research Pro.");
+            setCardNum(""); setCardExp(""); setCardCvc(""); setCardName(""); setUpiId("");
+            setIsUpgrading(false);
+          });
+        }, 1500);
+        return;
+      }
+
+      // Real Razorpay integration
+      const options = {
+        key: RAZORPAY_KEY_ID,
+        amount: order.amount,
+        currency: order.currency,
+        name: "ResearchAI",
+        description: `Research Pro - ${selectedPlan === "1_month" ? "1 Month" : selectedPlan === "5_months" ? "5 Months" : "1 Year"}`,
+        image: "/favicon.svg",
+        order_id: order.order_id,
+        handler: async function (response) {
+          try {
+            setIsUpgrading(true);
+            const verifyRes = await fetch(`${API}/auth/razorpay/verify`, {
+              method: "POST",
+              headers: { 
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}` 
+              },
+              body: JSON.stringify({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                plan: selectedPlan
+              })
+            });
+            
+            if (verifyRes.ok) {
+              const data = await verifyRes.json();
+              setUser(prev => prev ? { ...prev, tier: "pro", subscription_expires_at: data.subscription_expires_at } : null);
+              setUpgradeModalOpen(false);
+              alert("🎉 Subscription activated successfully! Thank you for upgrading to Research Pro.");
+            } else {
+              setUpgradeError("Payment signature verification failed.");
+            }
+          } catch (err) {
+            setUpgradeError("Failed to verify payment response.");
+          } finally {
+            setIsUpgrading(false);
+          }
+        },
+        prefill: {
+          name: user?.username || "",
+          email: user?.email || ""
+        },
+        theme: {
+          color: "#7c5bf5"
+        },
+        modal: {
+          ondismiss: function() {
+            setIsUpgrading(false);
+            alert("Payment cancelled.");
+          }
+        }
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.on('payment.failed', function (response) {
+        alert(`Payment failed: ${response.error.description}`);
+        setIsUpgrading(false);
+      });
+      rzp.open();
+    } catch (err) {
+      setUpgradeError(err.message || "Failed to initialize payment process.");
       setIsUpgrading(false);
     }
   };

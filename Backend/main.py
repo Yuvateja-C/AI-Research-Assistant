@@ -7,6 +7,7 @@ import sqlite3
 import re
 import secrets
 import stripe
+import razorpay
 from fastapi import FastAPI, UploadFile, File, HTTPException, Depends, Request, Response, Cookie, Header
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -19,6 +20,13 @@ from embeddings_service import generate_embeddings
 from auth_service import hash_password, verify_password, create_session, get_user_from_token, delete_session
 
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+
+RAZORPAY_KEY_ID = os.getenv("RAZORPAY_KEY_ID")
+RAZORPAY_KEY_SECRET = os.getenv("RAZORPAY_KEY_SECRET")
+
+razorpay_client = None
+if RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET:
+    razorpay_client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
 
 app = FastAPI()
 
@@ -111,6 +119,12 @@ class ChatUpdateRequest(BaseModel):
     status: str = None
 
 class UpgradeRequest(BaseModel):
+    plan: str
+
+class VerifyRazorpayRequest(BaseModel):
+    razorpay_order_id: str
+    razorpay_payment_id: str
+    razorpay_signature: str
     plan: str
 
 class QuestionRequest(BaseModel):
@@ -275,6 +289,88 @@ def verify_checkout_session(session_id: str, user: dict = Depends(get_current_us
             raise HTTPException(status_code=400, detail="Payment verification failed")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/auth/razorpay/create-order")
+def create_razorpay_order(data: UpgradeRequest, user: dict = Depends(get_current_user)):
+    amount = 4900
+    if data.plan == "5_months":
+        amount = 24900
+    elif data.plan == "12_months":
+        amount = 49900
+
+    if amount < 100:
+        raise HTTPException(status_code=400, detail="Minimum amount must be at least 100 paise")
+
+    if not razorpay_client:
+        mock_order_id = f"order_mock_{uuid.uuid4().hex[:12]}"
+        return {
+            "order_id": mock_order_id,
+            "amount": amount,
+            "currency": "INR",
+            "simulated": True
+        }
+
+    try:
+        order_data = {
+            "amount": amount,
+            "currency": "INR",
+            "receipt": f"receipt_{user['id']}_{int(time.time())}"
+        }
+        order = razorpay_client.order.create(data=order_data)
+        return {
+            "order_id": order["id"],
+            "amount": order["amount"],
+            "currency": order["currency"],
+            "simulated": False
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Razorpay API Error: {str(e)}")
+
+@app.post("/auth/razorpay/verify")
+def verify_razorpay_payment(data: VerifyRazorpayRequest, user: dict = Depends(get_current_user)):
+    if data.razorpay_order_id.startswith("order_mock_"):
+        now = int(time.time() * 1000)
+        months = 1
+        if data.plan == "5_months":
+            months = 5
+        elif data.plan == "12_months":
+            months = 12
+        expiry = now + (months * 30 * 24 * 3600 * 1000)
+
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("UPDATE users SET tier = 'pro', subscription_expires_at = ? WHERE id = ?", (expiry, user["id"]))
+        conn.commit()
+        conn.close()
+        return {"status": "success", "tier": "pro", "subscription_expires_at": expiry}
+
+    if not razorpay_client:
+        raise HTTPException(status_code=500, detail="Razorpay client not configured")
+
+    try:
+        razorpay_client.utility.verify_payment_signature({
+            'razorpay_order_id': data.razorpay_order_id,
+            'razorpay_payment_id': data.razorpay_payment_id,
+            'razorpay_signature': data.razorpay_signature
+        })
+    except Exception:
+        raise HTTPException(status_code=400, detail="Signature mismatch. Payment verification failed.")
+
+    now = int(time.time() * 1000)
+    months = 1
+    if data.plan == "5_months":
+        months = 5
+    elif data.plan == "12_months":
+        months = 12
+    expiry = now + (months * 30 * 24 * 3600 * 1000)
+
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("UPDATE users SET tier = 'pro', subscription_expires_at = ? WHERE id = ?", (expiry, user["id"]))
+    conn.commit()
+    conn.close()
+
+    return {"status": "success", "tier": "pro", "subscription_expires_at": expiry}
 
 @app.post("/auth/2fa/setup")
 def setup_2fa(user: dict = Depends(get_current_user)):
