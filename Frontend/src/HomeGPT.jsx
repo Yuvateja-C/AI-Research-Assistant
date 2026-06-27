@@ -319,7 +319,26 @@ export default function HomeGPT() {
       if (r.ok) {
         const data = await r.json();
         setChats(data);
-        if (data.length > 0 && !activeId) {
+        if (data.length === 0) {
+          const createRes = await fetch(`${API}/chats`, {
+            method: "POST",
+            headers: { "Authorization": `Bearer ${tkn}` }
+          });
+          if (createRes.ok) {
+            const newChat = await createRes.json();
+            const fresh = {
+              id: newChat.id,
+              title: newChat.title,
+              file_info: null,
+              summary: "",
+              status: "active",
+              tags: [],
+              messages: []
+            };
+            setChats([fresh]);
+            setActiveId(newChat.id);
+          }
+        } else if (data.length > 0 && !activeId) {
           setActiveId(data[0].id);
           fetchMessages(data[0].id, tkn);
         }
