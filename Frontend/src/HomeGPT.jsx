@@ -2005,7 +2005,7 @@ export default function HomeGPT() {
       )}
 
       {/* Hidden file input */}
-      <input ref={fileRef} type="file" accept=".pdf,.txt,.md,.csv" id="pdf-uploader" style={{ display:"none" }}
+      <input ref={fileRef} type="file" accept=".pdf,.txt,.md,.csv,.docx,.xlsx,.pptx" id="pdf-uploader" style={{ display:"none" }}
         onChange={e => { const f = e.target.files?.[0]; if (f) handleUpload(f); e.target.value = ""; }}
       />
     </div>

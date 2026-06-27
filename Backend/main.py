@@ -571,6 +571,45 @@ def get_messages(chat_id: str, user: dict = Depends(get_current_user)):
 # Large Upload (Streaming receiver & page-by-page indexer)
 # ----------------------------
 import fitz # PyMuPDF
+import zipfile
+import xml.etree.ElementTree as ET
+
+def extract_text_from_office(file_path: str, ext: str) -> str:
+    try:
+        with zipfile.ZipFile(file_path, 'r') as doc_zip:
+            if ext == ".docx":
+                xml_content = doc_zip.read('word/document.xml')
+                root = ET.fromstring(xml_content)
+                paragraphs = []
+                for paragraph in root.iter('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}p'):
+                    texts = [node.text for node in paragraph.iter('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}t') if node.text]
+                    if texts:
+                        paragraphs.append("".join(texts))
+                return "\n".join(paragraphs)
+            elif ext == ".xlsx":
+                try:
+                    xml_content = doc_zip.read('xl/sharedStrings.xml')
+                    root = ET.fromstring(xml_content)
+                    strings = []
+                    for t in root.iter('{http://schemas.openxmlformats.org/spreadsheetml/2006/main}t'):
+                        if t.text:
+                            strings.append(t.text)
+                    return "\n".join(strings)
+                except KeyError:
+                    return ""
+            elif ext == ".pptx":
+                slide_texts = []
+                slide_files = sorted([f for f in doc_zip.namelist() if f.startswith('ppt/slides/slide') and f.endswith('.xml')])
+                for slide_file in slide_files:
+                    xml_content = doc_zip.read(slide_file)
+                    root = ET.fromstring(xml_content)
+                    for t in root.iter('{http://schemas.openxmlformats.org/drawingml/2006/main}t'):
+                        if t.text:
+                            slide_texts.append(t.text)
+                return "\n".join(slide_texts)
+    except Exception as e:
+        return f"Error extracting text from office file: {str(e)}"
+    return ""
 
 @app.post("/upload")
 async def upload_large_pdf(
@@ -624,6 +663,9 @@ async def upload_large_pdf(
         elif lower_fn.endswith((".txt", ".md", ".csv")):
             with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
                 text_buffer = f.read()
+        elif lower_fn.endswith((".docx", ".xlsx", ".pptx")):
+            ext = os.path.splitext(lower_fn)[1]
+            text_buffer = extract_text_from_office(file_path, ext)
         else:
             raise HTTPException(status_code=400, detail="Unsupported file format")
             
