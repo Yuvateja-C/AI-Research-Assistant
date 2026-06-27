@@ -1471,7 +1471,7 @@ export default function HomeGPT() {
             )}
             <div>
               <h1 onClick={() => setActivePage("workspace")} style={{ fontSize:15, fontWeight:700, color:"var(--text)", letterSpacing:"-0.01em", lineHeight:1.2, cursor:"pointer" }}>
-                {activePage === "workspace" ? (activeChat ? activeChat.title : "Workspace") : activePage === "privacy" ? "Privacy Policy" : "Terms of Service"}
+                {activePage === "workspace" ? (activeChat ? activeChat.title : "Workspace") : activePage === "privacy" ? "Privacy Policy" : activePage === "terms" ? "Terms of Service" : activePage === "refund" ? "Cancellation & Refund Policy" : "Contact Us"}
               </h1>
               {activePage === "workspace" && activeChat?.file_info && (
                 <div style={{ fontSize:11, color:"var(--text-3)" }}>
@@ -1576,11 +1576,11 @@ export default function HomeGPT() {
                 <div style={{ background:"rgba(255,255,255,0.02)", padding:18, borderRadius:12, border:"1px solid var(--border)", display:"flex", flexDirection:"column", gap:12 }}>
                   <div>
                     <strong style={{ color:"#fff" }}>📧 Email Support:</strong>
-                    <div style={{ color:"var(--accent)", marginTop:4 }}>support@researchai.com</div>
+                    <div style={{ color:"var(--accent)", marginTop:4 }}>ai.researchassistant00@gmail.com</div>
                   </div>
                   <div>
                     <strong style={{ color:"#fff" }}>📍 Office Address:</strong>
-                    <div style={{ marginTop:4 }}>ResearchAI Tech Hub, Hyderabad, Telangana, India</div>
+                    <div style={{ marginTop:4 }}>Chittoor, Andhra Pradesh, 517001, India</div>
                   </div>
                   <div>
                     <strong style={{ color:"#fff" }}>📞 Business Hours:</strong>
