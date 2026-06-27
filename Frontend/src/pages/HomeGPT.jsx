@@ -256,6 +256,7 @@ export default function HomeGPT() {
   const [cardName, setCardName] = useState("");
   const [upgradeError, setUpgradeError] = useState("");
   const [selectedPlan, setSelectedPlan] = useState("1_month");
+  const [activeInvoice, setActiveInvoice] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState("upi"); // upi, card
   const [upiProvider, setUpiProvider] = useState("gpay"); // gpay, phonepe, paytm, qr
   const [upiId, setUpiId] = useState("");
@@ -477,6 +478,36 @@ export default function HomeGPT() {
     return Math.max(0, remaining);
   }, [user]);
 
+  const downloadInvoicePDF = (paymentId, amount, plan) => {
+    const doc = new jsPDF();
+    doc.setFont("Helvetica", "bold"); doc.setFontSize(20); doc.setTextColor(124, 91, 245);
+    doc.text("ResearchAI Invoice Receipt", 20, 25);
+    doc.setFontSize(10); doc.setTextColor(100, 100, 100);
+    doc.text(`Receipt ID: ${paymentId}`, 20, 35);
+    doc.text(`Date: ${new Date().toLocaleDateString()}`, 20, 42);
+    doc.line(20, 48, 190, 48);
+    
+    doc.setFont("Helvetica", "normal"); doc.setFontSize(12); doc.setTextColor(50, 50, 50);
+    doc.text("Plan Purchased:", 20, 58);
+    doc.setFont("Helvetica", "bold");
+    doc.text(plan === "1_month" ? "1 Month Premium Subscription" : plan === "5_months" ? "5 Months Premium Subscription" : "12 Months Premium Subscription", 60, 58);
+    
+    doc.setFont("Helvetica", "normal");
+    doc.text("Amount Paid:", 20, 68);
+    doc.setFont("Helvetica", "bold");
+    doc.text(`${amount}`, 60, 68);
+    
+    doc.setFont("Helvetica", "normal");
+    doc.text("Billing Status:", 20, 78);
+    doc.text("Paid via UPI / Card (Razorpay)", 60, 78);
+    
+    doc.line(20, 85, 190, 85);
+    doc.setFontSize(10); doc.setFont("Helvetica", "italic"); doc.setTextColor(150, 150, 150);
+    doc.text("Thank you for supporting ResearchAI! Email: ai.researchassistant00@gmail.com", 20, 95);
+    
+    doc.save(`Invoice_${paymentId}.pdf`);
+  };
+
   const handleUpgradePayment = async (e) => {
     if (e) e.preventDefault();
     setUpgradeError("");
@@ -518,7 +549,12 @@ export default function HomeGPT() {
           }).then(res => res.json()).then(data => {
             setUser(prev => prev ? { ...prev, tier: "pro", subscription_expires_at: data.subscription_expires_at } : null);
             setUpgradeModalOpen(false);
-            alert("🎉 Simulated subscription activated! Your account is upgraded to Research Pro.");
+            setActiveInvoice({
+              payment_id: "PAY_MOCK_" + Math.random().toString(36).substring(7).toUpperCase(),
+              amount: selectedPlan === "1_month" ? "₹49" : selectedPlan === "5_months" ? "₹249" : "₹499",
+              plan: selectedPlan,
+              date: new Date().toLocaleDateString()
+            });
             setCardNum(""); setCardExp(""); setCardCvc(""); setCardName(""); setUpiId("");
             setIsUpgrading(false);
           });
@@ -556,7 +592,12 @@ export default function HomeGPT() {
               const data = await verifyRes.json();
               setUser(prev => prev ? { ...prev, tier: "pro", subscription_expires_at: data.subscription_expires_at } : null);
               setUpgradeModalOpen(false);
-              alert("🎉 Subscription activated successfully! Thank you for upgrading to Research Pro.");
+              setActiveInvoice({
+                payment_id: response.razorpay_payment_id,
+                amount: selectedPlan === "1_month" ? "₹49" : selectedPlan === "5_months" ? "₹249" : "₹499",
+                plan: selectedPlan,
+                date: new Date().toLocaleDateString()
+              });
             } else {
               setUpgradeError("Payment signature verification failed.");
             }
@@ -1836,6 +1877,57 @@ export default function HomeGPT() {
                 🔒 Payments secured by Razorpay & UPI 2.0 Auto-Pay protocols.
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Invoice Receipt Modal */}
+      {activeInvoice && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.7)", backdropFilter:"blur(6px)", zIndex:999, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
+          <div className="anim-scaleIn" style={{ width:"100%", maxWidth:400, background:"var(--bg-surface)", border:"1px solid var(--border)", borderRadius:20, padding:24, boxShadow:"0 10px 40px rgba(0,0,0,0.5)", position:"relative", textAlign:"center" }}>
+            <button onClick={() => setActiveInvoice(null)} style={{ position:"absolute", top:16, right:16, background:"none", border:"none", color:"var(--text-3)", cursor:"pointer" }} aria-label="Close invoice modal">
+              {icon(I.X, 18)}
+            </button>
+            
+            <div style={{ width:48, height:48, borderRadius:"50%", background:"rgba(34,197,94,0.1)", color:"var(--green)", display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 16px", fontSize:22 }}>
+              ✓
+            </div>
+            <h3 style={{ fontSize:18, fontWeight:800, color:"#fff", margin:0 }}>Payment Successful!</h3>
+            <p style={{ fontSize:12, color:"var(--text-2)", marginTop:6, lineHeight:1.5 }}>
+              Your account has been upgraded to Research Pro. A copy of this receipt was sent to <strong>{user?.email || "your registered email"}</strong>.
+            </p>
+
+            <div style={{ background:"var(--bg-root)", border:"1px solid var(--border)", borderRadius:12, padding:14, margin:"16px 0", textAlign:"left", fontSize:12, display:"flex", flexDirection:"column", gap:8 }}>
+              <div style={{ display:"flex", justifyContent:"space-between" }}>
+                <span style={{ color:"var(--text-3)" }}>Receipt ID:</span>
+                <span style={{ color:"#fff", fontFamily:"monospace" }}>{activeInvoice.payment_id}</span>
+              </div>
+              <div style={{ display:"flex", justifyContent:"space-between" }}>
+                <span style={{ color:"var(--text-3)" }}>Plan:</span>
+                <span style={{ color:"#fff", fontWeight:600 }}>{activeInvoice.plan === "1_month" ? "1 Month Premium" : activeInvoice.plan === "5_months" ? "5 Months Premium" : "12 Months Premium"}</span>
+              </div>
+              <div style={{ display:"flex", justifyContent:"space-between" }}>
+                <span style={{ color:"var(--text-3)" }}>Amount Paid:</span>
+                <span style={{ color:"var(--accent)", fontWeight:700 }}>{activeInvoice.amount}</span>
+              </div>
+              <div style={{ display:"flex", justifyContent:"space-between" }}>
+                <span style={{ color:"var(--text-3)" }}>Date:</span>
+                <span style={{ color:"#fff" }}>{activeInvoice.date}</span>
+              </div>
+            </div>
+
+            <div style={{ display:"flex", gap:10 }}>
+              <button onClick={() => downloadInvoicePDF(activeInvoice.payment_id, activeInvoice.amount, activeInvoice.plan)} style={{
+                flex:1, padding:"10px 14px", borderRadius:10, background:"var(--grad)", color:"#fff", border:"none", fontSize:12, fontWeight:700, cursor:"pointer"
+              }}>
+                📥 Download Receipt PDF
+              </button>
+              <button onClick={() => setActiveInvoice(null)} style={{
+                flex:1, padding:"10px 14px", borderRadius:10, background:"var(--bg-surface)", border:"1px solid var(--border)", color:"var(--text-2)", fontSize:12, fontWeight:700, cursor:"pointer"
+              }}>
+                Dismiss
+              </button>
+            </div>
           </div>
         </div>
       )}
