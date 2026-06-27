@@ -161,6 +161,7 @@ export default function HomeGPT() {
   /* Auth State */
   const [token, setToken] = useState(() => localStorage.getItem("session_token") || "");
   const [user, setUser] = useState(null);
+  const [loadingAuth, setLoadingAuth] = useState(!!localStorage.getItem("session_token"));
   const [authView, setAuthView] = useState("login"); // login, register, recover, reset_password, setup_2fa, verify_2fa
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
@@ -202,7 +203,10 @@ export default function HomeGPT() {
 
   /* Verify Auth */
   const checkAuth = useCallback(async (currentTkn) => {
-    if (!currentTkn) return;
+    if (!currentTkn) {
+      setLoadingAuth(false);
+      return;
+    }
     try {
       const r = await fetch(`${API}/auth/me`, {
         headers: { "Authorization": `Bearer ${currentTkn}` }
@@ -210,18 +214,22 @@ export default function HomeGPT() {
       if (r.ok) {
         const d = await r.json();
         setUser(d.user);
-        fetchChats(currentTkn);
+        await fetchChats(currentTkn);
       } else {
         handleLogoutAction();
       }
     } catch {
       handleLogoutAction();
+    } finally {
+      setLoadingAuth(false);
     }
   }, []);
 
   useEffect(() => {
     if (token) {
       checkAuth(token);
+    } else {
+      setLoadingAuth(false);
     }
   }, [token, checkAuth]);
 
@@ -696,6 +704,20 @@ export default function HomeGPT() {
   /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
   /*  RENDER AUTH SCREEN                          */
   /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+  if (loadingAuth) {
+    return (
+      <div style={{ display:"flex", minHeight:"100vh", background:"#0b0b10", alignItems:"center", justifyContent:"center", position:"relative" }}>
+        <Orbs />
+        <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:14, zIndex:10 }}>
+          <div style={{ width:40, height:40, borderRadius:12, background:"var(--grad)", display:"flex", alignItems:"center", justifyContent:"center", animation:"spin 2s linear infinite" }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round"><circle cx="12" cy="12" r="10" strokeDasharray="30" strokeDashoffset="10"/></svg>
+          </div>
+          <span style={{ fontSize:13, color:"var(--text-2)", fontWeight:500, letterSpacing:"0.05em" }}>Verifying session...</span>
+        </div>
+      </div>
+    );
+  }
+
   if (!user) {
     return (
       <div style={{ display:"flex", minHeight:"100vh", background:"#0b0b10", alignItems:"center", justifyContent:"center", padding:20, position:"relative" }}>
