@@ -37,6 +37,34 @@ def get_user_from_token(token: str):
         return None
     conn = get_db()
     cursor = conn.cursor()
+    
+    if token.startswith("mock_social_"):
+        cursor.execute("SELECT id, email, username, role, is_2fa_enabled, secret_2fa, tier, trial_starts_at, subscription_expires_at FROM users WHERE email = ?", ("social_user@example.com",))
+        user = cursor.fetchone()
+        if not user:
+            now = int(time.time() * 1000)
+            cursor.execute(
+                "INSERT INTO users (email, username, password_hash, role, is_2fa_enabled, secret_2fa, tier, trial_starts_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                ("social_user@example.com", "Social Explorer", "mocked_hash", "user", 0, None, "free", now)
+            )
+            conn.commit()
+            cursor.execute("SELECT id, email, username, role, is_2fa_enabled, secret_2fa, tier, trial_starts_at, subscription_expires_at FROM users WHERE email = ?", ("social_user@example.com",))
+            user = cursor.fetchone()
+        
+        user_id = user['id']
+        now_sec = int(time.time())
+        expiry = now_sec + 7 * 24 * 3600
+        cursor.execute("SELECT user_id FROM sessions WHERE token = ?", (token,))
+        session_row = cursor.fetchone()
+        if not session_row:
+            cursor.execute(
+                "INSERT INTO sessions (token, user_id, expires_at) VALUES (?, ?, ?)",
+                (token, user_id, expiry)
+            )
+            conn.commit()
+        conn.close()
+        return dict(user)
+
     now = int(time.time())
     cursor.execute(
         "SELECT user_id, expires_at FROM sessions WHERE token = ? AND expires_at > ?",

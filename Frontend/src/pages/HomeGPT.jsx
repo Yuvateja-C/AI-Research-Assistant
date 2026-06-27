@@ -261,6 +261,7 @@ export default function HomeGPT() {
   const [upiProvider, setUpiProvider] = useState("gpay"); // gpay, phonepe, paytm, qr
   const [upiId, setUpiId] = useState("");
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const [permissionsGranted, setPermissionsGranted] = useState(() => localStorage.getItem("permissions_granted") || "prompt");
   const [editingChatId, setEditingChatId] = useState(null);
   const [editTitleValue, setEditTitleValue] = useState("");
 
@@ -1465,6 +1466,37 @@ export default function HomeGPT() {
 
   return (
     <div style={{ display:"flex", height:"100vh", height:"100dvh", width:"100vw", background:"var(--bg-root)", position:"relative", overflow:"hidden" }}>
+      {/* ═══ PERMISSIONS REQUEST BAR ═══ */}
+      {permissionsGranted === "prompt" && (
+        <div style={{
+          position: "fixed", top: 0, left: 0, right: 0, zIndex: 10000,
+          background: "rgba(11,11,16,0.95)", backdropFilter: "blur(12px)",
+          borderBottom: "1px solid var(--border)", padding: "12px 24px",
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          flexWrap: "wrap", gap: 12, boxShadow: "0 4px 30px rgba(0,0,0,0.5)",
+          animation: "slideDown 0.3s ease"
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 18 }}>🔒</span>
+            <span style={{ fontSize: 13, color: "var(--text-2)", lineHeight: 1.4 }}>
+              ResearchAI requests permissions to: <strong>📁 Local Storage Access</strong> (for session persistence), <strong>📄 Document Vector Processing</strong> (for PDF uploads), and <strong>🔔 Desktop Notifications</strong>.
+            </span>
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={() => { localStorage.setItem("permissions_granted", "granted"); setPermissionsGranted("granted"); }} style={{
+              padding: "8px 16px", borderRadius: 8, background: "var(--grad)", color: "#fff", border: "none", fontSize: 12, fontWeight: 700, cursor: "pointer"
+            }}>
+              Allow Access
+            </button>
+            <button onClick={() => { localStorage.setItem("permissions_granted", "blocked"); setPermissionsGranted("blocked"); }} style={{
+              padding: "8px 16px", borderRadius: 8, background: "var(--bg-surface)", border: "1px solid var(--border)", color: "var(--text-3)", fontSize: 12, fontWeight: 700, cursor: "pointer"
+            }}>
+              Block
+            </button>
+          </div>
+        </div>
+      )}
+
       <Orbs />
 
       {/* ═══ SIDEBAR — Desktop ═══ */}
