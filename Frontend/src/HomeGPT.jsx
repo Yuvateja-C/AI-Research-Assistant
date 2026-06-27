@@ -216,6 +216,7 @@ const Welcome = ({ onUpload, fileRef }) => (
 /*  MAIN APP WORKSPACE                          */
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 export default function HomeGPT() {
+  const sidebarW = 310;
   /* Page view routing */
   const [activePage, setActivePage] = useState("workspace"); // workspace, privacy, terms
 
