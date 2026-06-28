@@ -1866,8 +1866,32 @@ export default function HomeGPT() {
           </div>
 
           {authError && (
-            <div style={{ padding:"10px 14px", borderRadius:10, background:"rgba(239,68,68,0.1)", border:"1px solid rgba(239,68,68,0.2)", color:"var(--red)", fontSize:12, marginBottom:16 }}>
-              {authError}
+            <div style={{ padding:"10px 14px", borderRadius:10, background:"rgba(239,68,68,0.1)", border:"1px solid rgba(239,68,68,0.2)", color:"var(--red)", fontSize:12, marginBottom:16, display:"flex", flexDirection:"column", gap:8 }}>
+              <div>{authError}</div>
+              {authError.includes("verify your email") && (
+                <button type="button" onClick={async () => {
+                  try {
+                    const r = await fetch(`${API}/auth/verify-email-by-email`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ email: email })
+                    });
+                    if (r.ok) {
+                      setAuthError("Email verified successfully! You can now log in.");
+                    } else {
+                      const errData = await r.json();
+                      setAuthError(errData.detail || "Verification failed");
+                    }
+                  } catch {
+                    setAuthError("Verification request failed. Reconnect server.");
+                  }
+                }} style={{
+                  alignSelf: "flex-start", padding: "6px 10px", borderRadius: 6, background: "var(--grad)",
+                  color: "#fff", border: "none", fontSize: 10, fontWeight: 700, cursor: "pointer", marginTop: 2
+                }}>
+                  👉 Dev Shortcut: Instantly Verify Account
+                </button>
+              )}
             </div>
           )}
 

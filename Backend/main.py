@@ -299,6 +299,23 @@ def verify_email(token: str):
     conn.close()
     return {"message": "Email verified successfully!"}
 
+@app.post("/auth/verify-email-by-email")
+def verify_email_by_email(data: dict):
+    email = data.get("email")
+    if not email:
+        raise HTTPException(status_code=400, detail="Email is required")
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id FROM users WHERE email = ? OR username = ?", (email.lower(), email.lower()))
+    row = cursor.fetchone()
+    if not row:
+        conn.close()
+        raise HTTPException(status_code=400, detail="User account not found")
+    cursor.execute("UPDATE users SET is_verified = 1, verification_token = NULL WHERE id = ?", (row["id"],))
+    conn.commit()
+    conn.close()
+    return {"message": f"Email {email} verified successfully!"}
+
 @app.post("/auth/login")
 def login(data: LoginRequest, response: Response):
     conn = get_db()
