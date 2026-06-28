@@ -35,6 +35,15 @@ except ImportError:
 
 app = FastAPI()
 
+@app.on_event("startup")
+def startup_event():
+    try:
+        from clear_db import clear_all_data
+        clear_all_data()
+        print("🚀 Startup database cleanup completed successfully.")
+    except Exception as e:
+        print(f"⚠️ Startup database cleanup failed: {e}")
+
 # ----------------------------
 # CORS
 # ----------------------------
