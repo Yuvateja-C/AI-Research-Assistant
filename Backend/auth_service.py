@@ -38,17 +38,30 @@ def get_user_from_token(token: str):
     conn = get_db()
     cursor = conn.cursor()
     
-    if token.startswith("mock_social_"):
-        cursor.execute("SELECT id, email, username, role, is_2fa_enabled, secret_2fa, tier, trial_starts_at, subscription_expires_at FROM users WHERE email = ?", ("social_user@example.com",))
+    if token.startswith("mock_social_") or token.startswith("mock_social:"):
+        email = "social_user@example.com"
+        if token.startswith("mock_social:"):
+            parts = token.split(":")
+            if len(parts) >= 2:
+                email = parts[1]
+        
+        cursor.execute("SELECT id, email, username, role, is_2fa_enabled, secret_2fa, tier, trial_starts_at, subscription_expires_at FROM users WHERE email = ?", (email.lower(),))
         user = cursor.fetchone()
         if not user:
             now = int(time.time() * 1000)
+            social_id = str(__import__('uuid').uuid4())
+            username = email.split("@")[0]
+            # Ensure unique username
+            cursor.execute("SELECT id FROM users WHERE username = ?", (username.lower(),))
+            if cursor.fetchone():
+                import secrets
+                username = f"{username}_{secrets.token_hex(3)}"
             cursor.execute(
-                "INSERT INTO users (email, username, password_hash, role, is_2fa_enabled, secret_2fa, tier, trial_starts_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                ("social_user@example.com", "Social Explorer", "mocked_hash", "user", 0, None, "free", now)
+                "INSERT INTO users (id, email, username, password_hash, salt, role, is_2fa_enabled, secret_2fa, tier, trial_starts_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (social_id, email.lower(), username.lower(), "mocked_hash", "mocked_salt", "user", 0, None, "free", now, now)
             )
             conn.commit()
-            cursor.execute("SELECT id, email, username, role, is_2fa_enabled, secret_2fa, tier, trial_starts_at, subscription_expires_at FROM users WHERE email = ?", ("social_user@example.com",))
+            cursor.execute("SELECT id, email, username, role, is_2fa_enabled, secret_2fa, tier, trial_starts_at, subscription_expires_at FROM users WHERE email = ?", (email.lower(),))
             user = cursor.fetchone()
         
         user_id = user['id']
@@ -57,9 +70,10 @@ def get_user_from_token(token: str):
         cursor.execute("SELECT user_id FROM sessions WHERE token = ?", (token,))
         session_row = cursor.fetchone()
         if not session_row:
+            session_id = __import__('secrets').token_hex(8)
             cursor.execute(
-                "INSERT INTO sessions (token, user_id, expires_at) VALUES (?, ?, ?)",
-                (token, user_id, expiry)
+                "INSERT INTO sessions (id, token, user_id, expires_at) VALUES (?, ?, ?, ?)",
+                (session_id, token, user_id, expiry)
             )
             conn.commit()
         conn.close()

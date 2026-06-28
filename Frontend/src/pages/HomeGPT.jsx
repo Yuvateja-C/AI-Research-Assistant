@@ -227,6 +227,7 @@ export default function HomeGPT() {
   const [token, setToken] = useState(() => localStorage.getItem("session_token") || "");
   const [user, setUser] = useState(null);
   const [loadingAuth, setLoadingAuth] = useState(!!localStorage.getItem("session_token"));
+  const [connectionError, setConnectionError] = useState(false);
   const [authView, setAuthView] = useState("login"); // login, register, recover, reset_password, setup_2fa, verify_2fa
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
@@ -237,6 +238,9 @@ export default function HomeGPT() {
   const [recoverySent, setRecoverySent] = useState(false);
   const [recoveryLink, setRecoveryLink] = useState("");
   const [resetToken, setResetToken] = useState("");
+  const [socialModalOpen, setSocialModalOpen] = useState(false);
+  const [socialProvider, setSocialProvider] = useState("");
+  const [socialEmail, setSocialEmail] = useState("");
 
   /* App State */
   const [chats, setChats] = useState([]);
@@ -292,12 +296,18 @@ export default function HomeGPT() {
       if (r.ok) {
         const d = await r.json();
         setUser(d.user);
+        setConnectionError(false);
         await fetchChats(currentTkn);
-      } else {
+      } else if (r.status === 401 || r.status === 403) {
+        setConnectionError(false);
         handleLogoutAction();
+      } else {
+        console.warn("Auth check failed with server error:", r.status);
+        setConnectionError(true);
       }
-    } catch {
-      handleLogoutAction();
+    } catch (err) {
+      console.error("Auth check failed due to network error:", err);
+      setConnectionError(true);
     } finally {
       setLoadingAuth(false);
     }
@@ -677,13 +687,35 @@ export default function HomeGPT() {
 
   const handleSocialLoginSim = (provider) => {
     setAuthError("");
+    const savedEmail = localStorage.getItem("last_social_email");
+    if (savedEmail) {
+      setLoadingAuth(true);
+      setTimeout(() => {
+        const mockToken = `mock_social:${savedEmail}:${Math.random().toString(36).substring(7)}`;
+        localStorage.setItem("session_token", mockToken);
+        setToken(mockToken);
+        setLoadingAuth(false);
+      }, 1000);
+    } else {
+      setSocialProvider(provider);
+      setSocialEmail("");
+      setSocialModalOpen(true);
+    }
+  };
+
+  const handleSocialSubmit = (e) => {
+    e.preventDefault();
+    if (!socialEmail.trim()) return;
+    const emailLower = socialEmail.trim().toLowerCase();
+    setSocialModalOpen(false);
     setLoadingAuth(true);
     setTimeout(() => {
-      const mockToken = "mock_social_" + Math.random().toString(36).substring(7);
+      const mockToken = `mock_social:${emailLower}:${Math.random().toString(36).substring(7)}`;
       localStorage.setItem("session_token", mockToken);
+      localStorage.setItem("last_social_email", emailLower);
       setToken(mockToken);
       setLoadingAuth(false);
-    }, 1200);
+    }, 1000);
   };
 
   /* Chat Actions */
@@ -1322,6 +1354,56 @@ export default function HomeGPT() {
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round"><circle cx="12" cy="12" r="10" strokeDasharray="30" strokeDashoffset="10"/></svg>
           </div>
           <span style={{ fontSize:13, color:"var(--text-2)", fontWeight:500, letterSpacing:"0.05em" }}>Verifying session...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (connectionError) {
+    return (
+      <div style={{ display:"flex", minHeight:"100vh", background:"#0b0b10", alignItems:"center", justifyContent:"center", padding:20, position:"relative" }}>
+        <Orbs />
+        <div className="anim-scaleIn" style={{
+          width:"100%", maxWidth:420, padding:32, borderRadius:24, background:"rgba(20,20,28,0.75)",
+          backdropFilter:"blur(24px)", border:"1px solid var(--border)", zIndex:10, boxShadow:"0 10px 40px rgba(0,0,0,0.4)",
+          textAlign: "center"
+        }}>
+          <div style={{ display:"flex", flexDirection:"column", alignItems:"center", marginBottom:24 }}>
+            <div style={{ width:48, height:48, borderRadius:12, background:"rgba(239,68,68,0.1)", border:"1px solid rgba(239,68,68,0.2)", display:"flex", alignItems:"center", justifyContent:"center", marginBottom:14 }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            </div>
+            <h2 style={{ fontSize:20, fontWeight:800, color:"#fff" }}>Connection Error</h2>
+            <p style={{ fontSize:13, color:"var(--text-2)", marginTop:8, lineHeight:1.5 }}>
+              The secure research workspace server is warming up or temporarily unreachable. We are maintaining your session.
+            </p>
+          </div>
+          <button 
+            onClick={() => {
+              setConnectionError(false);
+              setLoadingAuth(true);
+              checkAuth(token);
+            }} 
+            style={{
+              width:"100%", padding:"12px 24px", borderRadius:12, border:"none", background:"var(--grad)", color:"#fff",
+              fontSize:14, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8,
+              boxShadow:"0 4px 15px var(--accent-glow)", transition:"all 0.3s"
+            }}
+          >
+            Retry Connection
+          </button>
+          <div style={{ marginTop:16 }}>
+            <button 
+              onClick={() => {
+                setConnectionError(false);
+                handleLogoutAction();
+              }}
+              style={{
+                background:"none", border:"none", color:"var(--text-3)", fontSize:12, cursor:"pointer", textDecoration:"underline"
+              }}
+            >
+              Sign out and log in again
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -2000,6 +2082,64 @@ export default function HomeGPT() {
                 Dismiss
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Dynamic Social Login Modal */}
+      {socialModalOpen && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.7)", backdropFilter:"blur(6px)", zIndex:999, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
+          <div className="anim-scaleIn" style={{ width:"100%", maxWidth:400, background:"var(--bg-surface)", border:"1px solid var(--border)", borderRadius:20, padding:24, boxShadow:"0 10px 40px rgba(0,0,0,0.5)", position:"relative" }}>
+            <button onClick={() => setSocialModalOpen(false)} style={{ position:"absolute", top:16, right:16, background:"none", border:"none", color:"var(--text-3)", cursor:"pointer" }} aria-label="Close social login modal">
+              {icon(I.X, 18)}
+            </button>
+            
+            <div style={{ textAlign:"center", marginBottom:20 }}>
+              <div style={{ width:48, height:48, borderRadius:12, background:"var(--bg-surface)", border:"1px solid var(--border)", display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 12px" }}>
+                {socialProvider === "google" ? (
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"/>
+                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                  </svg>
+                ) : (
+                  <svg width="20" height="20" viewBox="0 0 23 23" fill="currentColor">
+                    <rect x="0" y="0" width="11" height="11" fill="#F25022"/>
+                    <rect x="12" y="0" width="11" height="11" fill="#7FBA00"/>
+                    <rect x="0" y="12" width="11" height="11" fill="#00A4EF"/>
+                    <rect x="12" y="12" width="11" height="11" fill="#FFB900"/>
+                  </svg>
+                )}
+              </div>
+              <h3 style={{ fontSize:18, fontWeight:800, color:"#fff", margin:0, textTransform:"capitalize" }}>
+                Connect {socialProvider} Account
+              </h3>
+              <p style={{ fontSize:12, color:"var(--text-2)", marginTop:6, lineHeight:1.5 }}>
+                Enter your {socialProvider} email to authenticate and access your secure ResearchAI Hub workspace.
+              </p>
+            </div>
+
+            <form onSubmit={handleSocialSubmit} style={{ display:"flex", flexDirection:"column", gap:14 }}>
+              <div>
+                <label htmlFor="social-email" style={{ fontSize:11, fontWeight:600, color:"var(--text-2)", textTransform:"uppercase", display:"block", marginBottom:6 }}>
+                  Email Address
+                </label>
+                <input 
+                  required 
+                  id="social-email" 
+                  type="email" 
+                  value={socialEmail} 
+                  onChange={e => setSocialEmail(e.target.value)} 
+                  placeholder={socialProvider === "google" ? "username@gmail.com" : "username@outlook.com"}
+                  style={{ width:"100%", padding:"10px 14px", borderRadius:10, background:"var(--bg-root)", border:"1px solid var(--border)", color:"#fff", outline:"none", fontSize:14 }}
+                />
+              </div>
+
+              <button type="submit" style={{ width:"100%", padding:"12px", borderRadius:12, background:"var(--grad)", color:"#fff", border:"none", fontSize:14, fontWeight:700, cursor:"pointer", boxShadow:"0 4px 16px var(--accent-glow)", marginTop:8 }}>
+                Continue to Workspace
+              </button>
+            </form>
           </div>
         </div>
       )}
