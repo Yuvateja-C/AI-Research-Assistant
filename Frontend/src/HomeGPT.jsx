@@ -472,6 +472,13 @@ export default function HomeGPT() {
         return;
       }
       
+      // Navigate to verification confirmation screen instead of auto logging in
+      if (d.verification_token) {
+        setRecoveryLink(`${API}/auth/verify-email?token=${d.verification_token}`);
+        setAuthView("verify_email_sent");
+        return;
+      }
+
       const loginRes = await fetch(`${API}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
