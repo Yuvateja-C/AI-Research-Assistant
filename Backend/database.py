@@ -1,12 +1,16 @@
 import sqlite3
 import chromadb
+import os
+
+# Dynamic persistent paths (Render support)
+DATA_DIR = "/data" if os.path.exists("/data") and os.access("/data", os.W_OK) else "."
+SQLITE_DB = os.path.join(DATA_DIR, "research_assistant.db")
+CHROMA_PATH = os.path.join(DATA_DIR, "chroma_db")
 
 # ChromaDB
-client = chromadb.PersistentClient(path="./chroma_db")
+client = chromadb.PersistentClient(path=CHROMA_PATH)
 collection = client.get_or_create_collection(name="research_docs")
 
-# SQLite
-SQLITE_DB = "research_assistant.db"
 
 def get_db():
     conn = sqlite3.connect(SQLITE_DB, timeout=30.0)

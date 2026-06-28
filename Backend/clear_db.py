@@ -3,8 +3,8 @@ import sqlite3
 import chromadb
 
 # Possible database and ChromaDB directories depending on cwd
-sqlite_options = ["research_assistant.db", "Backend/research_assistant.db", "../research_assistant.db"]
-chroma_options = ["./chroma_db", "Backend/chroma_db", "../chroma_db"]
+sqlite_options = ["research_assistant.db", "Backend/research_assistant.db", "../research_assistant.db", "/data/research_assistant.db"]
+chroma_options = ["./chroma_db", "Backend/chroma_db", "../chroma_db", "/data/chroma_db"]
 
 def clear_all_data():
     print("🧹 Starting Database Clean-up...")

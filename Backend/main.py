@@ -37,12 +37,15 @@ app = FastAPI()
 
 @app.on_event("startup")
 def startup_event():
-    try:
-        from clear_db import clear_all_data
-        clear_all_data()
-        print("🚀 Startup database cleanup completed successfully.")
-    except Exception as e:
-        print(f"⚠️ Startup database cleanup failed: {e}")
+    if os.getenv("RESET_DB_ON_STARTUP") == "true":
+        try:
+            from clear_db import clear_all_data
+            clear_all_data()
+            print("🚀 Startup database cleanup completed successfully.")
+        except Exception as e:
+            print(f"⚠️ Startup database cleanup failed: {e}")
+    else:
+        print("🚀 Startup database cleanup bypassed (RESET_DB_ON_STARTUP is not set to true).")
 
 # ----------------------------
 # CORS
@@ -841,6 +844,35 @@ def extract_text_from_office(file_path: str, ext: str) -> str:
         return f"Error extracting text from office file: {str(e)}"
     return ""
 
+def safe_collection_add(collection, documents, embeddings, ids, metadatas):
+    try:
+        collection.add(
+            documents=documents,
+            embeddings=embeddings,
+            ids=ids,
+            metadatas=metadatas
+        )
+        return collection
+    except Exception as e:
+        err_msg = str(e)
+        if "Dimension" in err_msg or "InvalidDimension" in err_msg or "dimensionality" in err_msg:
+            try:
+                from database import client
+                print("⚠️ ChromaDB Dimension Mismatch detected. Re-creating collection...")
+                client.delete_collection("research_docs")
+                new_collection = client.get_or_create_collection(name="research_docs")
+                new_collection.add(
+                    documents=documents,
+                    embeddings=embeddings,
+                    ids=ids,
+                    metadatas=metadatas
+                )
+                return new_collection
+            except Exception:
+                raise e
+        else:
+            raise e
+
 @app.post("/upload")
 async def upload_large_pdf(
     request: Request,
@@ -848,6 +880,7 @@ async def upload_large_pdf(
     chat_id: str,
     user: dict = Depends(get_current_user)
 ):
+    global collection
     user = verify_user_subscription(user)
     conn = get_db()
     cursor = conn.cursor()
@@ -909,7 +942,8 @@ async def upload_large_pdf(
             if len(page_chunks) >= 100:
                 embeddings = generate_embeddings(page_chunks)
                 ids = [f"{chat_id}_chunk_{total_chunks_processed + i}" for i in range(len(page_chunks))]
-                collection.add(
+                collection = safe_collection_add(
+                    collection,
                     documents=page_chunks,
                     embeddings=embeddings,
                     ids=ids,
@@ -924,7 +958,8 @@ async def upload_large_pdf(
         if page_chunks:
             embeddings = generate_embeddings(page_chunks)
             ids = [f"{chat_id}_chunk_{total_chunks_processed + i}" for i in range(len(page_chunks))]
-            collection.add(
+            collection = safe_collection_add(
+                collection,
                 documents=page_chunks,
                 embeddings=embeddings,
                 ids=ids,
