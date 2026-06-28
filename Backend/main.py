@@ -6,43 +6,50 @@ import json
 import sqlite3
 import re
 import secrets
-import stripe
-import razorpay
 from fastapi import FastAPI, UploadFile, File, HTTPException, Depends, Request, Response, Cookie, Header
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 from chunk_service import chunk_text
 from pdf_service import extract_text_from_pdf
 from database import collection, get_db
 from llm_service import generate_answer, generate_answer_stream
 from embeddings_service import generate_embeddings
 from auth_service import hash_password, verify_password, create_session, get_user_from_token, delete_session
-
-stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+try:
+    import stripe
+    stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+except ImportError:
+    stripe = None
 
 RAZORPAY_KEY_ID = os.getenv("RAZORPAY_KEY_ID")
 RAZORPAY_KEY_SECRET = os.getenv("RAZORPAY_KEY_SECRET")
 
 razorpay_client = None
-if RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET:
-    razorpay_client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
+try:
+    import razorpay
+    if RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET:
+        razorpay_client = razorpay.Client(auth=(RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET))
+except ImportError:
+    razorpay = None
 
 app = FastAPI()
 
 # ----------------------------
 # CORS
 # ----------------------------
+origins = [
+    "https://researchai-app.vercel.app",
+    "https://ai-research-assistant-yuvateja-cs-projects.vercel.app",
+    "https://ai-research-assistant-gamma-six.vercel.app",
+    "http://localhost:5173",
+    "http://localhost:3000",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://ai-research-assistant-gamma-six.vercel.app",
-        "https://ai-research-assistant-yuvateja-cs-projects.vercel.app",
-        "https://researchai-app.vercel.app",
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "http://127.0.0.1:5173"
-    ],
+    allow_origins=origins,
+    allow_origin_regex=r"https://(ai-research-assistant-.*|researchai-app-.*|researchai-app)\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -58,6 +65,86 @@ os.makedirs(CHUNKS_FOLDER, exist_ok=True)
 
 # Mock in-memory recovery tokens for recovery workflow
 RECOVERY_TOKENS = {}
+
+# ----------------------------
+# SMTP Email Service Setup
+# ----------------------------
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+
+SMTP_HOST = os.getenv("SMTP_HOST")
+SMTP_PORT = os.getenv("SMTP_PORT")
+SMTP_USER = os.getenv("SMTP_USER")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
+SMTP_FROM = os.getenv("SMTP_FROM", "noreply@researchai.app")
+
+def send_html_email(to_email: str, subject: str, html_content: str):
+    # Always log mock emails locally for inspection
+    os.makedirs("mock_emails", exist_ok=True)
+    filename = f"mock_emails/{int(time.time())}_{to_email}_{subject.replace(' ', '_')}.html"
+    with open(filename, "w", encoding="utf-8") as f:
+        f.write(f"Subject: {subject}\nTo: {to_email}\n\n{html_content}")
+    print(f"[EMAIL] Saved email to {filename}")
+
+    if SMTP_HOST and SMTP_PORT and SMTP_USER and SMTP_PASSWORD:
+        try:
+            msg = MIMEMultipart("alternative")
+            msg["Subject"] = subject
+            msg["From"] = SMTP_FROM
+            msg["To"] = to_email
+            msg.attach(MIMEText(html_content, "html"))
+
+            server = smtplib.SMTP(SMTP_HOST, int(SMTP_PORT))
+            server.starttls()
+            server.login(SMTP_USER, SMTP_PASSWORD)
+            server.sendmail(SMTP_FROM, to_email, msg.as_string())
+            server.quit()
+            print(f"[EMAIL] Sent real email to {to_email}")
+        except Exception as e:
+            print(f"[EMAIL] Failed to send real email to {to_email}: {e}")
+
+def get_email_template(title: str, message: str, button_text: str = None, button_url: str = None) -> str:
+    btn_html = ""
+    if button_text and button_url:
+        btn_html = f"""
+        <div style="margin: 28px 0; text-align: center;">
+            <a href="{button_url}" target="_blank" style="background: linear-gradient(135deg, #7c5bf5 0%, #3b82f6 100%); color: white; padding: 12px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block; box-shadow: 0 4px 12px rgba(124, 91, 245, 0.3); border: none;">
+                {button_text}
+            </a>
+        </div>
+        """
+    return f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <style>
+            body {{ font-family: 'Inter', Arial, sans-serif; background-color: #0b0b10; color: #ffffff; margin: 0; padding: 0; }}
+            .container {{ max-width: 600px; margin: 20px auto; background-color: #14141c; border-radius: 16px; border: 1px solid rgba(255,255,255,0.06); padding: 40px; box-shadow: 0 10px 30px rgba(0,0,0,0.4); }}
+            .logo {{ font-size: 24px; font-weight: 800; color: #ffffff; text-align: center; margin-bottom: 20px; text-decoration: none; }}
+            .logo span {{ background: linear-gradient(135deg, #7c5bf5 0%, #3b82f6 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }}
+            h1 {{ font-size: 22px; font-weight: bold; margin-bottom: 20px; text-align: center; color: #fff; }}
+            p {{ font-size: 14px; line-height: 1.6; color: #a1a1aa; }}
+            .footer {{ margin-top: 40px; text-align: center; font-size: 11px; color: #71717a; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 20px; }}
+        </style>
+    </head>
+    <body>
+        <div style="background-color: #0b0b10; padding: 40px 20px;">
+            <div class="container">
+                <div class="logo"><span>ResearchAI</span></div>
+                <h1>{title}</h1>
+                <p>{message}</p>
+                {btn_html}
+                <div class="footer">
+                    &copy; 2026 ResearchAI. All rights reserved.<br>
+                    Intelligent Document Analysis SaaS Platform
+                </div>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
 
 # ----------------------------
 # Dependency
@@ -132,6 +219,26 @@ class QuestionRequest(BaseModel):
     history: list = []
     persona: str = "default"
 
+class ProfileUpdateRequest(BaseModel):
+    name: str = None
+    email: str = None
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+class ContactRequest(BaseModel):
+    name: str
+    email: str
+    message: str
+
+class UserStatusRequest(BaseModel):
+    status: str
+
+class ReportCreateRequest(BaseModel):
+    chat_id: str
+    title: str = None
+
 # ----------------------------
 # Auth Endpoints
 # ----------------------------
@@ -156,20 +263,48 @@ def register(data: RegisterRequest):
     
     pw_hash, salt = hash_password(data.password)
     user_id = str(uuid.uuid4())
+    verification_token = secrets.token_urlsafe(32)
+    
     cursor.execute(
-        "INSERT INTO users (id, email, username, password_hash, salt, tier, trial_starts_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        (user_id, data.email.lower(), data.username.lower(), pw_hash, salt, "free", int(time.time() * 1000), int(time.time() * 1000))
+        "INSERT INTO users (id, email, username, password_hash, salt, tier, trial_starts_at, created_at, name, status, is_verified, verification_token) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (user_id, data.email.lower(), data.username.lower(), pw_hash, salt, "free", int(time.time() * 1000), int(time.time() * 1000), data.username.title(), "active", 0, verification_token)
     )
     conn.commit()
     conn.close()
-    return {"message": "Registration successful", "user_id": user_id}
+
+    # Send verification email
+    verify_url = f"https://researchai-app.vercel.app/verify-email?token={verification_token}"
+    email_html = get_email_template(
+        "Welcome to ResearchAI!",
+        f"Thank you for registering. Please click the button below to verify your email address and unlock your intelligent research workspace.",
+        "Verify Email Address",
+        verify_url
+    )
+    send_html_email(data.email.lower(), "Verify Your Email - ResearchAI", email_html)
+
+    return {"message": "Registration successful. Please verify your email.", "user_id": user_id, "verification_link": verify_url}
+
+@app.get("/auth/verify-email")
+def verify_email(token: str):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, email FROM users WHERE verification_token = ?", (token,))
+    row = cursor.fetchone()
+    if not row:
+        conn.close()
+        raise HTTPException(status_code=400, detail="Invalid or expired verification token")
+    
+    cursor.execute("UPDATE users SET is_verified = 1, verification_token = NULL WHERE id = ?", (row["id"],))
+    conn.commit()
+    conn.close()
+    return {"message": "Email verified successfully!"}
 
 @app.post("/auth/login")
 def login(data: LoginRequest, response: Response):
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute(
-        "SELECT id, password_hash, salt, is_2fa_enabled, secret_2fa FROM users WHERE email = ? OR username = ?",
+        "SELECT id, email, password_hash, salt, is_2fa_enabled, secret_2fa, status, is_verified FROM users WHERE email = ? OR username = ?",
         (data.username_or_email.lower(), data.username_or_email.lower())
     )
     row = cursor.fetchone()
@@ -177,6 +312,12 @@ def login(data: LoginRequest, response: Response):
     
     if not row or not verify_password(data.password, row["salt"], row["password_hash"]):
         raise HTTPException(status_code=401, detail="Invalid credentials")
+    
+    if row["status"] == "suspended":
+        raise HTTPException(status_code=403, detail="Your account has been suspended. Please contact support.")
+        
+    if not row["is_verified"]:
+        raise HTTPException(status_code=403, detail="Please verify your email address before logging in.")
     
     # If 2FA enabled, check code
     if row["is_2fa_enabled"]:
@@ -215,8 +356,71 @@ def check_me(user: dict = Depends(get_current_user)):
         "is_2fa_enabled": bool(user["is_2fa_enabled"]),
         "tier": user.get("tier", "free"),
         "trial_starts_at": user.get("trial_starts_at"),
-        "subscription_expires_at": user.get("subscription_expires_at")
+        "subscription_expires_at": user.get("subscription_expires_at"),
+        "name": user.get("name") or user["username"].title(),
+        "status": user.get("status", "active"),
+        "is_verified": bool(user.get("is_verified", 0))
     }}
+
+# ----------------------------
+# Profile Endpoints
+# ----------------------------
+@app.put("/profile/update")
+def update_profile(data: ProfileUpdateRequest, user: dict = Depends(get_current_user)):
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    updates = []
+    params = []
+    if data.name is not None:
+        updates.append("name = ?")
+        params.append(data.name)
+    if data.email is not None:
+        if data.email.lower() != user["email"].lower():
+            cursor.execute("SELECT id FROM users WHERE email = ?", (data.email.lower(),))
+            if cursor.fetchone():
+                conn.close()
+                raise HTTPException(status_code=400, detail="Email already taken")
+            updates.append("email = ?")
+            params.append(data.email.lower())
+            
+    if updates:
+        params.append(user["id"])
+        cursor.execute(f"UPDATE users SET {', '.join(updates)} WHERE id = ?", params)
+        conn.commit()
+        
+    conn.close()
+    return {"message": "Profile updated successfully"}
+
+@app.post("/profile/change-password")
+def change_password(data: ChangePasswordRequest, user: dict = Depends(get_current_user)):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT password_hash, salt FROM users WHERE id = ?", (user["id"],))
+    row = cursor.fetchone()
+    
+    if not row or not verify_password(data.current_password, row["salt"], row["password_hash"]):
+        conn.close()
+        raise HTTPException(status_code=400, detail="Incorrect current password")
+        
+    if len(data.new_password) < 8:
+        conn.close()
+        raise HTTPException(status_code=400, detail="New password must be at least 8 characters")
+        
+    pw_hash, salt = hash_password(data.new_password)
+    cursor.execute("UPDATE users SET password_hash = ?, salt = ? WHERE id = ?", (pw_hash, salt, user["id"]))
+    conn.commit()
+    conn.close()
+    return {"message": "Password updated successfully"}
+
+@app.delete("/profile/delete-account")
+def delete_account(user: dict = Depends(get_current_user)):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM users WHERE id = ?", (user["id"],))
+    conn.commit()
+    conn.close()
+    return {"message": "Account deleted successfully"}
 
 @app.post("/auth/upgrade")
 def upgrade_user_tier(data: UpgradeRequest, user: dict = Depends(get_current_user)):
@@ -870,6 +1074,391 @@ async def generate_chat_summary(
     except Exception as e:
         conn.close()
         raise HTTPException(status_code=500, detail=f"Summary failed: {str(e)}")
+
+# ----------------------------
+# Report Management Endpoints
+# ----------------------------
+@app.post("/reports")
+async def generate_report(data: ReportCreateRequest, user: dict = Depends(get_current_user)):
+    user = verify_user_subscription(user)
+    tier = user.get("tier", "free")
+    
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    # Free tier limit check
+    if tier == "free":
+        cursor.execute("SELECT COUNT(*) as count FROM reports WHERE user_id = ? AND is_deleted = 0", (user["id"],))
+        count = cursor.fetchone()["count"]
+        if count >= 3:
+            conn.close()
+            raise HTTPException(status_code=403, detail="Free tier report generation limit reached. Please upgrade to Pro.")
+            
+    # Check if chat exists and belongs to user
+    cursor.execute("SELECT id, title, file_info FROM chats WHERE id = ? AND user_id = ?", (data.chat_id, user["id"]))
+    chat_row = cursor.fetchone()
+    if not chat_row:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Chat session not found")
+        
+    file_info = json.loads(chat_row["file_info"]) if chat_row["file_info"] else None
+    if not file_info:
+        conn.close()
+        raise HTTPException(status_code=400, detail="Please upload a document to this chat before generating a report")
+        
+    try:
+        # Query ChromaDB context
+        query_embeddings = generate_embeddings(["document main concepts experimental results data charts findings summary"])
+        results = collection.query(
+            query_embeddings=query_embeddings,
+            n_results=4,
+            where={"chat_id": data.chat_id}
+        )
+        
+        context = ""
+        if results and results.get("documents") and len(results["documents"][0]) > 0:
+            context = "\n".join(results["documents"][0])[:15000]
+            
+        if not context:
+            conn.close()
+            raise HTTPException(status_code=400, detail="No indexed document text chunks found in vector database")
+            
+        # Call LLM to generate report
+        from llm_service import generate_answer
+        report_prompt = """
+        Generate a professional, publication-quality research report based on the provided document context.
+        You must structure the output into separate sections using headings exactly as labeled below.
+        Be thorough, analytical, and professional.
+        
+        Sections:
+        ---EXECUTIVE SUMMARY---
+        Write a concise executive summary.
+        ---RESEARCH OVERVIEW---
+        Explain the overview, scope, and data details of the research.
+        ---DETAILED ANALYSIS---
+        Write a deep analysis of the methodology, inputs, and structure.
+        ---KEY FINDINGS---
+        List the key findings (bulleted).
+        ---AI INSIGHTS---
+        Provide your high-level AI observations and patterns.
+        ---RECOMMENDATIONS---
+        Give actionable recommendations.
+        ---CONCLUSION---
+        Conclude the report.
+        """
+        
+        raw_report = generate_answer(context, report_prompt)
+        
+        # Parse sections
+        def parse_section(text, marker):
+            pattern = rf"---{marker}---\s*(.*?)(?=\n---|\Z)"
+            match = re.search(pattern, text, re.DOTALL | re.IGNORECASE)
+            return match.group(1).strip() if match else f"No {marker.lower().replace('_', ' ')} available in context."
+            
+        exec_summary = parse_section(raw_report, "EXECUTIVE SUMMARY")
+        overview = parse_section(raw_report, "RESEARCH OVERVIEW")
+        analysis = parse_section(raw_report, "DETAILED ANALYSIS")
+        findings = parse_section(raw_report, "KEY FINDINGS")
+        insights = parse_section(raw_report, "AI INSIGHTS")
+        recs = parse_section(raw_report, "RECOMMENDATIONS")
+        conclusion = parse_section(raw_report, "CONCLUSION")
+        
+        report_id = str(uuid.uuid4())
+        now = int(time.time() * 1000)
+        report_title = data.title or f"Research Report: {chat_row['title']}"
+        
+        cursor.execute(
+            "INSERT INTO reports (id, user_id, title, chat_id, executive_summary, research_overview, detailed_analysis, key_findings, ai_insights, recommendations, conclusion, confidence_score, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (report_id, user["id"], report_title, data.chat_id, exec_summary, overview, analysis, findings, insights, recs, conclusion, 0.95, now, now)
+        )
+        conn.commit()
+        conn.close()
+        
+        return {
+            "id": report_id,
+            "title": report_title,
+            "executive_summary": exec_summary,
+            "research_overview": overview,
+            "detailed_analysis": analysis,
+            "key_findings": findings,
+            "ai_insights": insights,
+            "recommendations": recs,
+            "conclusion": conclusion,
+            "confidence_score": 0.95,
+            "created_at": now
+        }
+        
+    except Exception as e:
+        conn.close()
+        raise HTTPException(status_code=500, detail=f"Failed to generate report: {str(e)}")
+
+@app.get("/reports")
+def get_reports(search: str = None, favorite: bool = None, user: dict = Depends(get_current_user)):
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    query = "SELECT * FROM reports WHERE user_id = ? AND is_deleted = 0"
+    params = [user["id"]]
+    
+    if search:
+        query += " AND (title LIKE ? OR executive_summary LIKE ?)"
+        params.extend([f"%{search}%", f"%{search}%"])
+    if favorite is not None:
+        query += " AND is_favorite = ?"
+        params.append(1 if favorite else 0)
+        
+    query += " ORDER BY created_at DESC"
+    cursor.execute(query, params)
+    rows = cursor.fetchall()
+    conn.close()
+    
+    reports = []
+    for r in rows:
+        reports.append(dict(r))
+    return reports
+
+@app.put("/reports/{report_id}")
+def update_report(report_id: str, data: dict, user: dict = Depends(get_current_user)):
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT user_id FROM reports WHERE id = ?", (report_id,))
+    row = cursor.fetchone()
+    if not row or row["user_id"] != user["id"]:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Report not found")
+        
+    updates = []
+    params = []
+    if "title" in data:
+        updates.append("title = ?")
+        params.append(data["title"])
+    if "is_favorite" in data:
+        updates.append("is_favorite = ?")
+        params.append(1 if data["is_favorite"] else 0)
+        
+    if updates:
+        params.extend([int(time.time() * 1000), report_id])
+        cursor.execute(f"UPDATE reports SET {', '.join(updates)}, updated_at = ? WHERE id = ?", params)
+        conn.commit()
+        
+    conn.close()
+    return {"message": "Report updated successfully"}
+
+@app.delete("/reports/{report_id}")
+def delete_report(report_id: str, user: dict = Depends(get_current_user)):
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT user_id FROM reports WHERE id = ?", (report_id,))
+    row = cursor.fetchone()
+    if not row or row["user_id"] != user["id"]:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Report not found")
+        
+    # Soft delete
+    cursor.execute("UPDATE reports SET is_deleted = 1, updated_at = ? WHERE id = ?", (int(time.time() * 1000), report_id))
+    conn.commit()
+    conn.close()
+    return {"message": "Report deleted successfully"}
+
+@app.post("/reports/{report_id}/duplicate")
+def duplicate_report(report_id: str, user: dict = Depends(get_current_user)):
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT * FROM reports WHERE id = ? AND user_id = ?", (report_id, user["id"]))
+    row = cursor.fetchone()
+    if not row:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Report not found")
+        
+    new_id = str(uuid.uuid4())
+    now = int(time.time() * 1000)
+    cursor.execute(
+        "INSERT INTO reports (id, user_id, title, chat_id, executive_summary, research_overview, detailed_analysis, key_findings, ai_insights, recommendations, conclusion, confidence_score, is_favorite, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (new_id, user["id"], f"Copy of {row['title']}", row["chat_id"], row["executive_summary"], row["research_overview"], row["detailed_analysis"], row["key_findings"], row["ai_insights"], row["recommendations"], row["conclusion"], row["confidence_score"], row["is_favorite"], now, now)
+    )
+    conn.commit()
+    conn.close()
+    return {"id": new_id, "message": "Report duplicated successfully"}
+
+# ----------------------------
+# Razorpay Webhook Endpoint
+# ----------------------------
+RAZORPAY_WEBHOOK_SECRET = os.getenv("RAZORPAY_WEBHOOK_SECRET")
+
+def verify_razorpay_webhook(payload: bytes, signature: str) -> bool:
+    if not RAZORPAY_WEBHOOK_SECRET:
+        print("[RAZORPAY] RAZORPAY_WEBHOOK_SECRET is not configured in .env. Skipping verification.")
+        return True
+    import hmac
+    import hashlib
+    generated_signature = hmac.new(
+        RAZORPAY_WEBHOOK_SECRET.encode("utf-8"),
+        payload,
+        hashlib.sha256
+    ).hexdigest()
+    return hmac.compare_digest(generated_signature, signature)
+
+@app.post("/auth/razorpay/webhook")
+async def razorpay_webhook(request: Request):
+    payload = await request.body()
+    signature = request.headers.get("X-Razorpay-Signature")
+    
+    if not signature:
+        raise HTTPException(status_code=400, detail="Missing X-Razorpay-Signature header")
+        
+    if not verify_razorpay_webhook(payload, signature):
+        raise HTTPException(status_code=400, detail="Invalid webhook signature")
+        
+    try:
+        data = json.loads(payload)
+        event = data.get("event")
+        
+        if event == "subscription.charged":
+            sub_entity = data["payload"]["subscription"]["entity"]
+            notes = sub_entity.get("notes", {})
+            user_id = notes.get("user_id")
+            
+            if user_id:
+                conn = get_db()
+                cursor = conn.cursor()
+                now = int(time.time() * 1000)
+                plan = notes.get("plan", "monthly")
+                days = 365 if plan == "yearly" else 30
+                expiry = now + (days * 24 * 3600 * 1000)
+                
+                cursor.execute("UPDATE users SET tier = 'pro', subscription_expires_at = ? WHERE id = ?", (expiry, user_id))
+                conn.commit()
+                
+                cursor.execute("SELECT email, username FROM users WHERE id = ?", (user_id,))
+                user_row = cursor.fetchone()
+                conn.close()
+                
+                if user_row:
+                    email_html = get_email_template(
+                        "Payment Successful - Premium Activated",
+                        f"Hi {user_row['username']}, your subscription payment was captured successfully! Your ResearchAI Pro account is now active. Thank you for supporting our platform!"
+                    )
+                    send_html_email(user_row["email"], "Payment Success - ResearchAI Pro", email_html)
+                    
+        elif event in ["subscription.cancelled", "subscription.halted"]:
+            sub_entity = data["payload"]["subscription"]["entity"]
+            notes = sub_entity.get("notes", {})
+            user_id = notes.get("user_id")
+            
+            if user_id:
+                conn = get_db()
+                cursor = conn.cursor()
+                cursor.execute("UPDATE users SET tier = 'free', subscription_expires_at = NULL WHERE id = ?", (user_id,))
+                conn.commit()
+                conn.close()
+                
+        return {"status": "ok"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ----------------------------
+# Admin Panel Endpoints
+# ----------------------------
+@app.get("/admin/stats")
+def get_admin_stats(user: dict = Depends(get_current_user)):
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Forbidden. Admin access required.")
+        
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT COUNT(*) as count FROM users")
+    total_users = cursor.fetchone()["count"]
+    
+    cursor.execute("SELECT COUNT(*) as count FROM reports WHERE is_deleted = 0")
+    total_reports = cursor.fetchone()["count"]
+    
+    cursor.execute("SELECT COUNT(*) as count FROM users WHERE tier = 'pro'")
+    active_subs = cursor.fetchone()["count"]
+    
+    total_revenue = active_subs * 19.0
+    
+    cursor.execute("SELECT COUNT(*) as count FROM users WHERE created_at > ?", (int(time.time() - 30*24*3600)*1000,))
+    users_growth = cursor.fetchone()["count"]
+    
+    cursor.execute("SELECT COUNT(*) as count FROM messages")
+    ai_queries = cursor.fetchone()["count"]
+    
+    conn.close()
+    return {
+        "total_users": total_users,
+        "total_reports": total_reports,
+        "active_subscriptions": active_subs,
+        "total_revenue": total_revenue,
+        "users_growth": users_growth,
+        "ai_queries": ai_queries
+    }
+
+@app.get("/admin/users")
+def list_admin_users(user: dict = Depends(get_current_user)):
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Forbidden. Admin access required.")
+        
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, email, username, role, tier, name, status, is_verified, created_at FROM users")
+    rows = cursor.fetchall()
+    conn.close()
+    
+    users = []
+    for r in rows:
+        users.append(dict(r))
+    return users
+
+@app.put("/admin/users/{target_id}/status")
+def toggle_user_status(target_id: str, data: UserStatusRequest, user: dict = Depends(get_current_user)):
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Forbidden. Admin access required.")
+        
+    if data.status not in ["active", "suspended"]:
+        raise HTTPException(status_code=400, detail="Invalid status. Must be active or suspended.")
+        
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("UPDATE users SET status = ? WHERE id = ?", (data.status, target_id))
+    conn.commit()
+    conn.close()
+    return {"message": f"User status updated to {data.status}"}
+
+@app.delete("/admin/users/{target_id}")
+def admin_delete_user(target_id: str, user: dict = Depends(get_current_user)):
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Forbidden. Admin access required.")
+        
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM users WHERE id = ?", (target_id,))
+    conn.commit()
+    conn.close()
+    return {"message": "User deleted successfully"}
+
+# ----------------------------
+# Contact Support Endpoint
+# ----------------------------
+@app.post("/contact")
+def submit_contact(data: ContactRequest):
+    print(f"[CONTACT FORM] Submission from {data.name} ({data.email}): {data.message}")
+    
+    os.makedirs("support_tickets", exist_ok=True)
+    filename = f"support_tickets/{int(time.time())}_{data.email}.txt"
+    with open(filename, "w", encoding="utf-8") as f:
+        f.write(f"Name: {data.name}\nEmail: {data.email}\n\nMessage:\n{data.message}")
+        
+    email_html = get_email_template(
+        "Support Ticket Received",
+        f"Hi {data.name}, thank you for contacting ResearchAI Support. We have received your inquiry regarding: '{data.message[:100]}...' and our team will get back to you within 24 hours."
+    )
+    send_html_email(data.email.lower(), "Support Ticket Received - ResearchAI", email_html)
+    
+    return {"message": "Inquiry submitted successfully. Confirmation email sent."}
 
 # ----------------------------
 # Health Check

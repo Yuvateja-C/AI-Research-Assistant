@@ -58,6 +58,10 @@ const I = {
   Archive: (p) => <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>,
   Lock: (p) => <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>,
   User: (p) => <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
+  Sun: (p) => <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>,
+  Moon: (p) => <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>,
+  Settings: (p) => <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>,
+  Support: (p) => <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>,
 };
 const icon = (Comp, s = 16) => <Comp width={s} height={s} style={{ flexShrink: 0 }} />;
 
@@ -269,6 +273,40 @@ export default function HomeGPT() {
   const [permissionsGranted, setPermissionsGranted] = useState(() => localStorage.getItem("permissions_granted") || "prompt");
   const [editingChatId, setEditingChatId] = useState(null);
   const [editTitleValue, setEditTitleValue] = useState("");
+
+  /* SaaS Platform Expanded State */
+  const [activeTab, setActiveTab] = useState("workspace"); // workspace, dashboard, reports, billing, settings, support, admin
+  const [theme, setTheme] = useState(() => localStorage.getItem("theme") || "dark");
+  const [reports, setReports] = useState([]);
+  const [activeReport, setActiveReport] = useState(null);
+  const [generatingReport, setGeneratingReport] = useState(false);
+  const [reportTitle, setReportTitle] = useState("");
+  const [reportSearch, setReportSearch] = useState("");
+  const [reportFavoriteFilter, setReportFavoriteFilter] = useState(false);
+  const [adminStats, setAdminStats] = useState(null);
+  const [adminUsers, setAdminUsers] = useState([]);
+  const [adminSearch, setAdminSearch] = useState("");
+  const [contactName, setContactName] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
+  const [contactMessage, setContactMessage] = useState("");
+  const [contactSuccess, setContactSuccess] = useState(false);
+  const [contactLoading, setContactLoading] = useState(false);
+  const [profileName, setProfileName] = useState("");
+  const [profileEmail, setProfileEmail] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [profileMessage, setProfileMessage] = useState("");
+  const [profileError, setProfileError] = useState("");
+  const [notificationOptIn, setNotificationOptIn] = useState(true);
+  const [toasts, setToasts] = useState([]);
+
+  const showToast = useCallback((message, type = "success") => {
+    const id = Math.random().toString(36).substring(7);
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 4000);
+  }, []);
 
   /* Tag & Filter state */
   const [selectedTagFilter, setSelectedTagFilter] = useState("All Tags");
@@ -558,6 +596,415 @@ export default function HomeGPT() {
     
     doc.save(`Invoice_${paymentId}.pdf`);
   };
+
+  const handleDownloadDocx = (report) => {
+    const content = `
+      <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+      <head>
+        <title>${report.title}</title>
+        <style>
+          body { font-family: 'Arial', sans-serif; padding: 20px; color: #333; line-height: 1.6; }
+          h1 { color: #7c5bf5; font-size: 24px; border-bottom: 2px solid #7c5bf5; padding-bottom: 5px; }
+          h2 { color: #3b82f6; font-size: 18px; margin-top: 20px; }
+          p { font-size: 12px; margin-bottom: 10px; }
+        </style>
+      </head>
+      <body>
+        <h1>${report.title}</h1>
+        <p><strong>Unique Report ID:</strong> ${report.id}</p>
+        <p><strong>Created:</strong> ${new Date(report.created_at).toLocaleDateString()}</p>
+        <p><strong>Confidence Score:</strong> ${(report.confidence_score * 100).toFixed(0)}%</p>
+        <hr/>
+        
+        <h2>1. Executive Summary</h2>
+        <p>${report.executive_summary.replace(/\n/g, '<br/>')}</p>
+        
+        <h2>2. Research Overview</h2>
+        <p>${report.research_overview.replace(/\n/g, '<br/>')}</p>
+        
+        <h2>3. Detailed Analysis</h2>
+        <p>${report.detailed_analysis.replace(/\n/g, '<br/>')}</p>
+        
+        <h2>4. Key Findings</h2>
+        <p>${report.key_findings.replace(/\n/g, '<br/>')}</p>
+        
+        <h2>5. AI Insights</h2>
+        <p>${report.ai_insights.replace(/\n/g, '<br/>')}</p>
+        
+        <h2>6. Recommendations</h2>
+        <p>${report.recommendations.replace(/\n/g, '<br/>')}</p>
+        
+        <h2>7. Conclusion</h2>
+        <p>${report.conclusion.replace(/\n/g, '<br/>')}</p>
+      </body>
+      </html>
+    `;
+    const blob = new Blob(['\ufeff' + content], { type: 'application/msword' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${report.title.replace(/\s+/g, '_')}_Report.doc`;
+    a.click();
+    showToast("DOCX report downloaded successfully");
+  };
+
+  const handleDownloadReportPDF = (report) => {
+    const doc = new jsPDF();
+    doc.setFont("Helvetica", "bold");
+    doc.setFontSize(22);
+    doc.setTextColor(124, 91, 245);
+    doc.text("ResearchAI Analytical Report", 20, 25);
+    
+    doc.setFontSize(14);
+    doc.setTextColor(50, 50, 50);
+    doc.text(report.title, 20, 35);
+    
+    doc.setFontSize(10);
+    doc.text(`ID: ${report.id}`, 20, 42);
+    doc.text(`Created: ${new Date(report.created_at).toLocaleDateString()}`, 20, 48);
+    doc.line(20, 54, 190, 54);
+    
+    let y = 62;
+    
+    const addSection = (title, content) => {
+      if (y > 260) {
+        doc.addPage();
+        y = 25;
+      }
+      doc.setFont("Helvetica", "bold");
+      doc.setFontSize(12);
+      doc.setTextColor(124, 91, 245);
+      doc.text(title, 20, y);
+      y += 7;
+      
+      doc.setFont("Helvetica", "normal");
+      doc.setFontSize(10);
+      doc.setTextColor(80, 80, 80);
+      const lines = doc.splitTextToSize(content, 170);
+      for (let line of lines) {
+        if (y > 270) {
+          doc.addPage();
+          y = 25;
+        }
+        doc.text(line, 20, y);
+        y += 6;
+      }
+      y += 10;
+    };
+    
+    addSection("EXECUTIVE SUMMARY", report.executive_summary);
+    addSection("RESEARCH OVERVIEW", report.research_overview);
+    addSection("DETAILED ANALYSIS", report.detailed_analysis);
+    addSection("KEY FINDINGS", report.key_findings);
+    addSection("AI INSIGHTS", report.ai_insights);
+    addSection("RECOMMENDATIONS", report.recommendations);
+    addSection("CONCLUSION", report.conclusion);
+    
+    doc.save(`${report.title.replace(/\s+/g, '_')}_Report.pdf`);
+    showToast("PDF report downloaded successfully");
+  };
+
+  /* ----------------------------
+     SaaS API Handlers
+     ---------------------------- */
+  const fetchReports = useCallback(async (tkn) => {
+    try {
+      const queryParams = new URLSearchParams();
+      if (reportSearch) queryParams.append("search", reportSearch);
+      if (reportFavoriteFilter) queryParams.append("favorite", "true");
+      const r = await fetch(`${API}/reports?${queryParams.toString()}`, {
+        headers: { "Authorization": `Bearer ${tkn}` }
+      });
+      if (r.ok) {
+        const d = await r.json();
+        setReports(d);
+      }
+    } catch (err) {
+      console.error("Failed to fetch reports:", err);
+    }
+  }, [reportSearch, reportFavoriteFilter]);
+
+  const handleCreateReport = async () => {
+    if (!activeId) return;
+    setGeneratingReport(true);
+    showToast("Generating comprehensive analytical report...", "info");
+    try {
+      const r = await fetch(`${API}/reports`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ chat_id: activeId, title: reportTitle || undefined })
+      });
+      const d = await r.json();
+      if (r.ok) {
+        showToast("Report generated successfully!");
+        setReports(prev => [d, ...prev]);
+        setActiveReport(d);
+        setActiveTab("reports");
+        setReportTitle("");
+      } else {
+        showToast(d.detail || "Failed to generate report", "error");
+      }
+    } catch (err) {
+      showToast("Network error generating report", "error");
+    } finally {
+      setGeneratingReport(false);
+    }
+  };
+
+  const handleToggleReportFavorite = async (report) => {
+    try {
+      const newFav = !report.is_favorite;
+      const r = await fetch(`${API}/reports/${report.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ is_favorite: newFav })
+      });
+      if (r.ok) {
+        setReports(prev => prev.map(rep => rep.id === report.id ? { ...rep, is_favorite: newFav } : rep));
+        if (activeReport?.id === report.id) {
+          setActiveReport(prev => ({ ...prev, is_favorite: newFav }));
+        }
+        showToast(newFav ? "Added to favorites" : "Removed from favorites");
+      }
+    } catch (err) {
+      showToast("Error updating report", "error");
+    }
+  };
+
+  const handleRenameReport = async (reportId, newTitle) => {
+    try {
+      const r = await fetch(`${API}/reports/${reportId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ title: newTitle })
+      });
+      if (r.ok) {
+        setReports(prev => prev.map(rep => rep.id === reportId ? { ...rep, title: newTitle } : rep));
+        if (activeReport?.id === reportId) {
+          setActiveReport(prev => ({ ...prev, title: newTitle }));
+        }
+        showToast("Report renamed successfully");
+      }
+    } catch (err) {
+      showToast("Error renaming report", "error");
+    }
+  };
+
+  const handleDeleteReport = async (reportId) => {
+    if (!confirm("Are you sure you want to delete this report?")) return;
+    try {
+      const r = await fetch(`${API}/reports/${reportId}`, {
+        method: "DELETE",
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (r.ok) {
+        setReports(prev => prev.filter(rep => rep.id !== reportId));
+        if (activeReport?.id === reportId) setActiveReport(null);
+        showToast("Report deleted successfully");
+      }
+    } catch (err) {
+      showToast("Error deleting report", "error");
+    }
+  };
+
+  const handleDuplicateReport = async (reportId) => {
+    try {
+      const r = await fetch(`${API}/reports/${reportId}/duplicate`, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      const d = await r.json();
+      if (r.ok) {
+        showToast("Report duplicated successfully");
+        fetchReports(token);
+      }
+    } catch (err) {
+      showToast("Error duplicating report", "error");
+    }
+  };
+
+  const fetchAdminStats = useCallback(async () => {
+    try {
+      const r = await fetch(`${API}/admin/stats`, {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (r.ok) {
+        const d = await r.json();
+        setAdminStats(d);
+      }
+    } catch (err) {
+      console.error("Failed to fetch admin stats:", err);
+    }
+  }, [token]);
+
+  const fetchAdminUsers = useCallback(async () => {
+    try {
+      const r = await fetch(`${API}/admin/users`, {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (r.ok) {
+        const d = await r.json();
+        setAdminUsers(d);
+      }
+    } catch (err) {
+      console.error("Failed to fetch admin users:", err);
+    }
+  }, [token]);
+
+  const handleToggleUserStatus = async (targetUser) => {
+    const newStatus = targetUser.status === "active" ? "suspended" : "active";
+    try {
+      const r = await fetch(`${API}/admin/users/${targetUser.id}/status`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ status: newStatus })
+      });
+      if (r.ok) {
+        showToast(`User status set to ${newStatus}`);
+        setAdminUsers(prev => prev.map(u => u.id === targetUser.id ? { ...u, status: newStatus } : u));
+      }
+    } catch (err) {
+      showToast("Error updating user status", "error");
+    }
+  };
+
+  const handleDeleteUser = async (userId) => {
+    if (!confirm("Are you sure you want to permanently delete this user account?")) return;
+    try {
+      const r = await fetch(`${API}/admin/users/${userId}`, {
+        method: "DELETE",
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (r.ok) {
+        showToast("User account permanently deleted");
+        setAdminUsers(prev => prev.filter(u => u.id !== userId));
+      }
+    } catch (err) {
+      showToast("Error deleting user", "error");
+    }
+  };
+
+  const handleContactSubmit = async (e) => {
+    e.preventDefault();
+    setContactLoading(true);
+    try {
+      const r = await fetch(`${API}/contact`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: contactName, email: contactEmail, message: contactMessage })
+      });
+      if (r.ok) {
+        setContactSuccess(true);
+        setContactMessage("");
+        showToast("Support request submitted!");
+      }
+    } catch (err) {
+      showToast("Error submitting contact request", "error");
+    } finally {
+      setContactLoading(false);
+    }
+  };
+
+  const handleProfileUpdate = async (e) => {
+    e.preventDefault();
+    setProfileMessage("");
+    setProfileError("");
+    try {
+      const r = await fetch(`${API}/profile/update`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ name: profileName || undefined, email: profileEmail || undefined })
+      });
+      const d = await r.json();
+      if (r.ok) {
+        setProfileMessage("Profile updated successfully!");
+        showToast("Profile details updated");
+        setUser(prev => ({ ...prev, name: profileName || prev.name, email: profileEmail || prev.email }));
+      } else {
+        setProfileError(d.detail || "Update failed");
+      }
+    } catch (err) {
+      setProfileError("Network error updating profile");
+    }
+  };
+
+  const handlePasswordChange = async (e) => {
+    e.preventDefault();
+    setProfileMessage("");
+    setProfileError("");
+    try {
+      const r = await fetch(`${API}/profile/change-password`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ current_password: currentPassword, new_password: newPassword })
+      });
+      const d = await r.json();
+      if (r.ok) {
+        setProfileMessage("Password changed successfully!");
+        showToast("Password updated");
+        setCurrentPassword("");
+        setNewPassword("");
+      } else {
+        setProfileError(d.detail || "Failed to change password");
+      }
+    } catch (err) {
+      setProfileError("Network error changing password");
+    }
+  };
+
+  const handleAccountDelete = async () => {
+    if (!confirm("CRITICAL WARNING: This will permanently delete your account, chats, and reports. This cannot be undone. Are you sure?")) return;
+    try {
+      const r = await fetch(`${API}/profile/delete-account`, {
+        method: "DELETE",
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (r.ok) {
+        showToast("Account deleted");
+        handleLogoutAction();
+      }
+    } catch (err) {
+      showToast("Error deleting account", "error");
+    }
+  };
+
+  // Run initial state triggers when user updates
+  useEffect(() => {
+    if (token && user) {
+      setProfileName(user.name || "");
+      setProfileEmail(user.email || "");
+      fetchReports(token);
+      if (user.role === "admin") {
+        fetchAdminStats();
+        fetchAdminUsers();
+      }
+    }
+  }, [token, user, fetchReports, fetchAdminStats, fetchAdminUsers]);
+
+  // Refetch reports on search update
+  useEffect(() => {
+    if (token) {
+      fetchReports(token);
+    }
+  }, [reportSearch, reportFavoriteFilter, token, fetchReports]);
 
   const handleUpgradePayment = async (e) => {
     if (e) e.preventDefault();
@@ -1142,6 +1589,12 @@ export default function HomeGPT() {
             <div style={{ fontSize:9, color:"var(--text-3)", letterSpacing:"0.08em", textTransform:"uppercase" }}>Intelligence Engine</div>
           </div>
         </div>
+        
+        {/* Theme Switcher Button */}
+        <button onClick={() => setTheme(prev => prev === "dark" ? "light" : "dark")} title="Switch Theme" style={{ width:30, height:30, borderRadius:8, background:"var(--bg-hover)", border:"none", color:"var(--text-2)", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
+          {theme === "dark" ? icon(I.Sun, 14) : icon(I.Moon, 14)}
+        </button>
+
         {isMobile && (
           <button onClick={() => setSidebarOpen(false)} style={{ width:32, height:32, borderRadius:8, background:"var(--bg-hover)", border:"none", color:"var(--text-2)", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
             {icon(I.X, 16)}
@@ -1164,175 +1617,155 @@ export default function HomeGPT() {
         </div>
       )}
 
-      {/* Free Trial / Upgrade status alert in Sidebar */}
-      {user && user.tier === "free" && (
-        <div style={{ padding:"10px 12px", margin:"8px 12px 0", background:"rgba(245,158,11,0.08)", border:"1px solid rgba(245,158,11,0.15)", borderRadius:10, display:"flex", flexDirection:"column", gap:6 }}>
-          <div style={{ fontSize:10, color:"var(--gold)", fontWeight:700, textTransform:"uppercase", letterSpacing:"0.05em" }}>⏳ Trial Status</div>
-          <div style={{ fontSize:11, color:"var(--text-2)", lineHeight:1.4 }}>{trialDaysRemaining} days remaining ({Math.max(0, 3 - chats.filter(c => c.file_info).length)} uploads left)</div>
-          <button onClick={() => setUpgradeModalOpen(true)} style={{ padding:"6px", background:"var(--gold)", border:"none", borderRadius:6, color:"#fff", fontSize:11, fontWeight:700, cursor:"pointer", marginTop:4, display:"flex", alignItems:"center", justifyContent:"center", gap:4 }}>🛡️ Upgrade to Pro</button>
-        </div>
-      )}
-
-      {user && user.tier === "pro" && (
-        <div style={{ padding:"10px 12px", margin:"8px 12px 0", background:"rgba(34,197,94,0.08)", border:"1px solid rgba(34,197,94,0.15)", borderRadius:10, display:"flex", flexDirection:"column", gap:4 }}>
-          <div style={{ fontSize:10, color:"var(--green)", fontWeight:700, textTransform:"uppercase", letterSpacing:"0.05em" }}>💎 Research Pro Active</div>
-          <div style={{ fontSize:11, color:"var(--text-2)", lineHeight:1.4 }}>
-            Expires: {user.subscription_expires_at ? new Date(user.subscription_expires_at).toLocaleDateString() : "Lifetime"}
-          </div>
-        </div>
-      )}
-
-      {/* New Chat */}
-      <div style={{ padding:"12px 12px 4px" }}>
-        <button onClick={handleCreateChat} style={{
-          width:"100%", padding:"10px 14px", borderRadius:12, border:"1px dashed rgba(124,91,245,0.3)",
-          background:"var(--grad-subtle)", color:"var(--text)", fontSize:13, fontWeight:600,
-          cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8, transition:"all 0.2s",
-        }}
-        onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--accent)"; e.currentTarget.style.boxShadow = "0 0 12px var(--accent-glow)"; }}
-        onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(124,91,245,0.3)"; e.currentTarget.style.boxShadow = "none"; }}
-        >
-          {icon(I.Plus, 15)} New Research
+      {/* SaaS Navigation Tabs */}
+      <div style={{ padding:"8px 12px", display:"flex", flexDirection:"column", gap:2, borderBottom:"1px solid var(--border)" }}>
+        <button className={`tab-btn ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => { setActiveTab('dashboard'); if (isMobile) setSidebarOpen(false); }}>
+          📊 Dashboard
         </button>
+        <button className={`tab-btn ${activeTab === 'workspace' ? 'active' : ''}`} onClick={() => { setActiveTab('workspace'); if (isMobile) setSidebarOpen(false); }}>
+          🧠 Workspace
+        </button>
+        <button className={`tab-btn ${activeTab === 'reports' ? 'active' : ''}`} onClick={() => { setActiveTab('reports'); if (isMobile) setSidebarOpen(false); }}>
+          📄 My Reports
+        </button>
+        <button className={`tab-btn ${activeTab === 'billing' ? 'active' : ''}`} onClick={() => { setActiveTab('billing'); if (isMobile) setSidebarOpen(false); }}>
+          💎 SaaS Billing
+        </button>
+        <button className={`tab-btn ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => { setActiveTab('settings'); if (isMobile) setSidebarOpen(false); }}>
+          ⚙️ Settings & Profile
+        </button>
+        <button className={`tab-btn ${activeTab === 'support' ? 'active' : ''}`} onClick={() => { setActiveTab('support'); if (isMobile) setSidebarOpen(false); }}>
+          💬 Help Support
+        </button>
+        {user && user.role === "admin" && (
+          <button className={`tab-btn ${activeTab === 'admin' ? 'active' : ''}`} onClick={() => { setActiveTab('admin'); if (isMobile) setSidebarOpen(false); }} style={{ color: "var(--gold)" }}>
+            👑 Admin Panel
+          </button>
+        )}
       </div>
 
-      {/* Filter Options */}
-      <div style={{ padding:"6px 12px", display:"flex", flexDirection:"column", gap:6 }}>
-        {/* Status filters */}
-        <div style={{ display:"flex", background:"var(--bg-surface)", padding:2, borderRadius:8, border:"1px solid var(--border)" }}>
-          {["all", "favorite", "archived"].map(st => (
-            <button key={st} onClick={() => setSelectedStatusFilter(st)} style={{
-              flex:1, padding:"4px 6px", fontSize:11, textTransform:"capitalize", border:"none", borderRadius:6, cursor:"pointer",
-              background: selectedStatusFilter === st ? "var(--bg-hover)" : "transparent",
-              color: selectedStatusFilter === st ? "var(--text)" : "var(--text-3)",
-              fontWeight: selectedStatusFilter === st ? 600 : 500
-            }}>
-              {st}
+      {/* Dynamic Sub-Area: Shows Chat List and Filters if Workspace active */}
+      {activeTab === 'workspace' && (
+        <>
+          {/* Free Trial Status alert */}
+          {user && user.tier === "free" && (
+            <div style={{ padding:"10px 12px", margin:"8px 12px 0", background:"rgba(245,158,11,0.08)", border:"1px solid rgba(245,158,11,0.15)", borderRadius:10, display:"flex", flexDirection:"column", gap:6 }}>
+              <div style={{ fontSize:10, color:"var(--gold)", fontWeight:700, textTransform:"uppercase", letterSpacing:"0.05em" }}>⏳ Trial Status</div>
+              <div style={{ fontSize:11, color:"var(--text-2)", lineHeight:1.4 }}>{trialDaysRemaining} days remaining ({Math.max(0, 3 - chats.filter(c => c.file_info).length)} uploads left)</div>
+              <button onClick={() => { setActiveTab('billing'); }} style={{ padding:"6px", background:"var(--gold)", border:"none", borderRadius:6, color:"#fff", fontSize:11, fontWeight:700, cursor:"pointer", marginTop:4, display:"flex", alignItems:"center", justifyContent:"center", gap:4 }}>🛡️ Upgrade to Pro</button>
+            </div>
+          )}
+
+          {user && user.tier === "pro" && (
+            <div style={{ padding:"10px 12px", margin:"8px 12px 0", background:"rgba(34,197,94,0.08)", border:"1px solid rgba(34,197,94,0.15)", borderRadius:10, display:"flex", flexDirection:"column", gap:4 }}>
+              <div style={{ fontSize:10, color:"var(--green)", fontWeight:700, textTransform:"uppercase", letterSpacing:"0.05em" }}>💎 Research Pro Active</div>
+              <div style={{ fontSize:11, color:"var(--text-2)", lineHeight:1.4 }}>
+                Expires: {user.subscription_expires_at ? new Date(user.subscription_expires_at).toLocaleDateString() : "Lifetime"}
+              </div>
+            </div>
+          )}
+
+          {/* New Chat */}
+          <div style={{ padding:"12px 12px 4px" }}>
+            <button onClick={handleCreateChat} style={{
+              width:"100%", padding:"10px 14px", borderRadius:12, border:"1px dashed rgba(124,91,245,0.3)",
+              background:"var(--grad-subtle)", color:"var(--text)", fontSize:13, fontWeight:600,
+              cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:8, transition:"all 0.2s",
+            }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--accent)"; e.currentTarget.style.boxShadow = "0 0 12px var(--accent-glow)"; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(124,91,245,0.3)"; e.currentTarget.style.boxShadow = "none"; }}
+            >
+              {icon(I.Plus, 15)} New Research
             </button>
-          ))}
-        </div>
-
-        {/* Tag Filters */}
-        <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-          <select value={selectedTagFilter} onChange={e => setSelectedTagFilter(e.target.value)} style={{
-            width:"100%", padding:"6px 10px", borderRadius:8, background:"var(--bg-surface)", border:"1px solid var(--border)",
-            color:"#ffffff", fontSize:11, outline:"none", cursor:"pointer"
-          }}>
-            {allAvailableTags.map(t => (
-              <option key={t} value={t} style={{ background: "#1a1a24", color: "#ffffff" }}>{t}</option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {/* Search */}
-      <div style={{ padding:"8px 12px" }}>
-        <div style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 12px", borderRadius:10, background:"var(--bg-surface)", border:"1px solid var(--border)" }}>
-          <div style={{ color:"var(--text-3)", flexShrink:0 }}>{icon(I.Search, 14)}</div>
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search chats..."
-            style={{ flex:1, background:"transparent", border:"none", outline:"none", color:"var(--text)", fontSize:13, fontFamily:"inherit" }}
-          />
-        </div>
-      </div>
-
-      {/* Chat List */}
-      <div style={{ flex:1, overflowY:"auto", padding:"4px 8px 8px" }}>
-        {Object.entries(grouped).map(([group, items]) => (
-          <div key={group}>
-            <div style={{ fontSize:10, fontWeight:700, color:"var(--text-3)", letterSpacing:"0.1em", textTransform:"uppercase", padding:"12px 8px 6px" }}>{group}</div>
-            {items.map(c => {
-              const isActive = c.id === activeId;
-              const isFav = c.status === "favorite";
-              const isArchived = c.status === "archived";
-              
-              return (
-                <div key={c.id} style={{ position:"relative", marginBottom:2 }}>
-                  <button onClick={() => { setActiveId(c.id); fetchMessages(c.id, token); if (isMobile) setSidebarOpen(false); }}
-                    style={{
-                      width:"100%", padding:"10px 10px", borderRadius:10, border:"none", textAlign:"left",
-                      background: isActive ? "var(--bg-active)" : "transparent",
-                      borderLeft: isActive ? "2px solid var(--accent)" : "2px solid transparent",
-                      cursor:"pointer", display:"flex", alignItems:"center", gap:10, transition:"all 0.15s"
-                    }}
-                  >
-                    <div style={{ width:28, height:28, borderRadius:8, background: isActive ? "var(--accent)15" : "var(--bg-surface)", display:"flex", alignItems:"center", justifyContent:"center", color: isActive ? "var(--accent)" : "var(--text-3)", flexShrink:0 }}>
-                      {icon(c.file_info ? I.File : I.Doc, 13)}
-                    </div>
-                    <div style={{ flex:1, overflow:"hidden" }}>
-                      {editingChatId === c.id ? (
-                        <input
-                          autoFocus
-                          value={editTitleValue}
-                          onChange={e => setEditTitleValue(e.target.value)}
-                          onBlur={() => handleRenameChat(c.id, editTitleValue)}
-                          onKeyDown={e => { if (e.key === "Enter") handleRenameChat(c.id, editTitleValue); }}
-                          style={{ background:"var(--bg-root)", border:"1px solid var(--accent)", color:"#fff", fontSize:12, padding:"2px 6px", borderRadius:4, width:"95%" }}
-                          onClick={e => e.stopPropagation()}
-                        />
-                      ) : (
-                        <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-                          <span style={{ fontSize:13, fontWeight: isActive ? 600 : 500, color: isActive ? "var(--text)" : "var(--text-2)", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
-                            {c.title}
-                          </span>
-                          {isFav && <span style={{ color:"var(--gold)", fontSize:10 }}>★</span>}
-                          {isArchived && <span style={{ color:"var(--text-3)", fontSize:9, background:"var(--bg-surface)", padding:"1px 4px", borderRadius:3 }}>Archived</span>}
-                        </div>
-                      )}
-                      
-                      {/* Tags row */}
-                      {c.tags && c.tags.length > 0 && (
-                        <div style={{ display:"flex", flexWrap:"wrap", gap:3, marginTop:4 }}>
-                          {c.tags.map(t => t && (
-                            <span key={t} style={{ fontSize:9, background:"rgba(124,91,245,0.08)", border:"1px solid rgba(124,91,245,0.15)", color:"var(--accent)", padding:"0px 5px", borderRadius:4, display:"flex", alignItems:"center", gap:2 }}>
-                              {t}
-                              <span onClick={(e) => { e.stopPropagation(); handleRemoveTag(c.id, t); }} style={{ color:"var(--red)", fontWeight:"bold", cursor:"pointer", marginLeft:2 }}>×</span>
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    
-                    <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:4, flexShrink:0 }}>
-                      <span style={{ fontSize:10, color:"var(--text-3)" }}>{relativeTime(c.updatedAt || c.createdAt)}</span>
-                      
-                      {/* Options */}
-                      <div style={{ display:"flex", gap:3 }}>
-                        <span onClick={(e) => { e.stopPropagation(); setEditingChatId(c.id); setEditTitleValue(c.title); }} title="Rename" style={{ color:"var(--text-3)", cursor:"pointer", padding:2 }}>
-                          {icon(I.Edit, 10)}
-                        </span>
-                        <span onClick={(e) => { e.stopPropagation(); toggleFavorite(c); }} title={isFav ? "Unfavorite" : "Favorite"} style={{ color: isFav ? "var(--gold)" : "var(--text-3)", cursor:"pointer", padding:2 }}>
-                          {icon(I.StarOutline, 10)}
-                        </span>
-                        <span onClick={(e) => { e.stopPropagation(); toggleArchive(c); }} title={isArchived ? "Unarchive" : "Archive"} style={{ color:"var(--text-3)", cursor:"pointer", padding:2 }}>
-                          {icon(I.Archive, 10)}
-                        </span>
-                        <span onClick={(e) => handleDeleteChat(c.id, e)} title="Delete" style={{ color:"var(--red)", cursor:"pointer", padding:2 }}>
-                          {icon(I.Trash, 10)}
-                        </span>
-                      </div>
-                    </div>
-                  </button>
-                  
-                  {/* Inline Tag Adder */}
-                  <div style={{ padding:"0 8px 4px 38px" }}>
-                    {addingTagId === c.id ? (
-                      <div style={{ display:"flex", gap:4, alignItems:"center" }}>
-                        <input value={newTagVal} onChange={e => setNewTagVal(e.target.value)} placeholder="Add tag..."
-                          style={{ background:"var(--bg-root)", border:"1px solid var(--border)", color:"#fff", fontSize:10, padding:"2px 5px", borderRadius:4, width:80 }}
-                        />
-                        <button onClick={() => handleAddTag(c.id)} style={{ padding:"2px 6px", fontSize:9, background:"var(--accent)", color:"#fff", border:"none", borderRadius:3, cursor:"pointer" }}>+</button>
-                        <button onClick={() => setAddingTagId(null)} style={{ padding:"2px 6px", fontSize:9, background:"var(--bg-hover)", color:"var(--text-3)", border:"none", borderRadius:3, cursor:"pointer" }}>×</button>
-                      </div>
-                    ) : (
-                      <span onClick={() => { setAddingTagId(c.id); setNewTagVal(""); }} style={{ fontSize:10, color:"var(--text-3)", cursor:"pointer", textDecoration:"underline" }}>+ add tag</span>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
           </div>
-        ))}
-      </div>
+
+          {/* Filter Options */}
+          <div style={{ padding:"6px 12px", display:"flex", flexDirection:"column", gap:6 }}>
+            {/* Status filters */}
+            <div style={{ display:"flex", background:"var(--bg-surface)", padding:2, borderRadius:8, border:"1px solid var(--border)" }}>
+              {["all", "favorite", "archived"].map(st => (
+                <button key={st} onClick={() => setSelectedStatusFilter(st)} style={{
+                  flex:1, padding:"4px 6px", fontSize:11, textTransform:"capitalize", border:"none", borderRadius:6, cursor:"pointer",
+                  background: selectedStatusFilter === st ? "var(--bg-hover)" : "transparent",
+                  color: selectedStatusFilter === st ? "var(--text)" : "var(--text-3)",
+                  fontWeight: selectedStatusFilter === st ? 600 : 500
+                }}>
+                  {st}
+                </button>
+              ))}
+            </div>
+
+            {/* Tag Filters */}
+            <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+              <select value={selectedTagFilter} onChange={e => setSelectedTagFilter(e.target.value)} style={{
+                width:"100%", padding:"6px 10px", borderRadius:8, background:"var(--bg-surface)", border:"1px solid var(--border)",
+                color:"var(--text)", fontSize:11, outline:"none", cursor:"pointer"
+              }}>
+                {allAvailableTags.map(t => (
+                  <option key={t} value={t} style={{ background: "var(--bg-surface)", color: "var(--text)" }}>{t}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Search */}
+          <div style={{ padding:"8px 12px" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 12px", borderRadius:10, background:"var(--bg-surface)", border:"1px solid var(--border)" }}>
+              <div style={{ color:"var(--text-3)", flexShrink:0 }}>{icon(I.Search, 14)}</div>
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search chats..."
+                style={{ flex:1, background:"transparent", border:"none", outline:"none", color:"var(--text)", fontSize:13, fontFamily:"inherit" }}
+              />
+            </div>
+          </div>
+
+          {/* Chat List */}
+          <div style={{ flex:1, overflowY:"auto", padding:"4px 8px 8px" }}>
+            {Object.entries(grouped).map(([group, items]) => (
+              <div key={group}>
+                <div style={{ fontSize:10, fontWeight:700, color:"var(--text-3)", letterSpacing:"0.1em", textTransform:"uppercase", padding:"12px 8px 6px" }}>{group}</div>
+                {items.map(c => {
+                  const isActive = c.id === activeId;
+                  const isFav = c.status === "favorite";
+                  const isArchived = c.status === "archived";
+                  
+                  return (
+                    <div key={c.id} style={{ position:"relative", marginBottom:2 }}>
+                      <button onClick={() => { setActiveId(c.id); fetchMessages(c.id, token); if (isMobile) setSidebarOpen(false); }}
+                        style={{
+                          width:"100%", padding:"10px 10px", borderRadius:10, border:"none", textAlign:"left",
+                          background: isActive ? "var(--bg-hover)" : "transparent",
+                          color: isActive ? "var(--text)" : "var(--text-2)",
+                          fontSize:12.5, fontWeight: isActive ? 600 : 500, cursor:"pointer",
+                          display:"flex", alignItems:"center", gap:8, textOverflow:"ellipsis", overflow:"hidden", whiteSpace:"nowrap"
+                        }}>
+                        {icon(I.Doc, 13)}
+                        <span style={{ flex:1, textOverflow:"ellipsis", overflow:"hidden", whiteSpace:"nowrap" }}>{c.title}</span>
+                        {isFav && <span style={{ color:"var(--gold)" }}>★</span>}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {activeTab === 'reports' && (
+        <div style={{ padding:"12px", display:"flex", flexDirection:"column", gap:10, flex:1 }}>
+          <div style={{ fontSize:11, fontWeight:700, color:"var(--text-3)", textTransform:"uppercase", letterSpacing:"0.05em" }}>Filters & Folders</div>
+          <div style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 12px", borderRadius:10, background:"var(--bg-surface)", border:"1px solid var(--border)" }}>
+            <div style={{ color:"var(--text-3)" }}>{icon(I.Search, 14)}</div>
+            <input value={reportSearch} onChange={e => setReportSearch(e.target.value)} placeholder="Search reports..."
+              style={{ flex:1, background:"transparent", border:"none", outline:"none", color:"var(--text)", fontSize:12, fontFamily:"inherit" }}
+            />
+          </div>
+          <label style={{ display:"flex", alignItems:"center", gap:8, fontSize:12, color:"var(--text-2)", cursor:"pointer", padding:"4px 0" }}>
+            <input type="checkbox" checked={reportFavoriteFilter} onChange={e => setReportFavoriteFilter(e.target.checked)} style={{ accentColor:"var(--accent)" }} />
+            Show Favorites Only
+          </label>
+        </div>
+      )}
 
       {/* Footer */}
       <div style={{ padding:"12px 16px", borderTop:"1px solid var(--border)", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
@@ -1340,7 +1773,7 @@ export default function HomeGPT() {
           <div style={{ width:7, height:7, borderRadius:"50%", background:"var(--green)", animation:"pulseGlow 2s ease-in-out infinite" }}/>
           <span style={{ fontSize:11, color:"var(--text-3)", fontWeight:500 }}>Online</span>
         </div>
-        <span style={{ fontSize:9, color:"var(--text-3)", fontFamily:"'JetBrains Mono',monospace" }}>v3.0</span>
+        <span style={{ fontSize:9, color:"var(--text-3)", fontFamily:"'JetBrains Mono',monospace" }}>v4.0</span>
       </div>
     </div>
   );
@@ -1530,6 +1963,39 @@ export default function HomeGPT() {
             </form>
           )}
 
+          {authView === "verify_email_sent" && (
+            <div style={{ textAlign:"center" }}>
+              <p style={{ fontSize:14, color:"var(--green)", fontWeight:"bold", marginBottom:12 }}>Verification Email Triggered!</p>
+              <p style={{ fontSize:13, color:"var(--text-2)", lineHeight:1.5, marginBottom:20 }}>
+                We have logged a mock verification email. For development purposes, click the button below to instantly verify and proceed:
+              </p>
+              {recoveryLink && (
+                <button
+                  onClick={async () => {
+                    const tokenParam = recoveryLink.split("token=")[1];
+                    try {
+                      const r = await fetch(`${API}/auth/verify-email?token=${tokenParam}`);
+                      if (r.ok) {
+                        setAuthView("login");
+                        setAuthError("Email verified successfully! You can now log in.");
+                      } else {
+                        setAuthError("Verification failed.");
+                      }
+                    } catch (e) {
+                      setAuthError("Connection error.");
+                    }
+                  }}
+                  style={{ width:"100%", padding:"12px", borderRadius:12, background:"var(--grad)", color:"#fff", border:"none", fontSize:14, fontWeight:700, cursor:"pointer" }}
+                >
+                  Instantly Verify Account
+                </button>
+              )}
+              <div style={{ textAlign:"center", fontSize:12, marginTop:20 }}>
+                <span onClick={() => { setAuthView("login"); setAuthError(""); }} style={{ color:"var(--accent)", cursor:"pointer" }}>Back to Login</span>
+              </div>
+            </div>
+          )}
+
           {authView === "recover" && (
             <form onSubmit={handleRecovery} style={{ display:"flex", flexDirection:"column", gap:14 }}>
               {!recoverySent ? (
@@ -1585,6 +2051,654 @@ export default function HomeGPT() {
       </div>
     );
   }
+
+  const renderDashboardView = () => {
+    const recentReports = reports.slice(0, 2);
+    return (
+      <div className="anim-scaleIn" style={{ padding: "16px 0", color: "var(--text)" }}>
+        <div style={{
+          padding: 24, borderRadius: 16, background: "var(--grad)",
+          boxShadow: "0 8px 30px var(--accent-glow)", marginBottom: 24
+        }}>
+          <h2 style={{ fontSize: 22, fontWeight: 800, color: "#fff", marginBottom: 6 }}>
+            Welcome back, {user?.name || user?.username}! 👋
+          </h2>
+          <p style={{ fontSize: 13, color: "rgba(255,255,255,0.8)", lineHeight: 1.5 }}>
+            Ready to unlock hidden research insights? Check your analytics or initiate a document analysis session below.
+          </p>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16, marginBottom: 24 }}>
+          <div style={{ padding: 20, borderRadius: 16, background: "var(--bg-surface)", border: "1px solid var(--border)" }}>
+            <div style={{ fontSize: 11, color: "var(--text-3)", fontWeight: 700, textTransform: "uppercase", marginBottom: 6 }}>Reports Generated</div>
+            <div style={{ fontSize: 24, fontWeight: 800, color: "var(--text)" }}>{reports.length}</div>
+            <div style={{ fontSize: 11, color: "var(--accent)", marginTop: 6, fontWeight: 600 }}>Active formal PDFs & Word docs</div>
+          </div>
+          <div style={{ padding: 20, borderRadius: 16, background: "var(--bg-surface)", border: "1px solid var(--border)" }}>
+            <div style={{ fontSize: 11, color: "var(--text-3)", fontWeight: 700, textTransform: "uppercase", marginBottom: 6 }}>Research Workspaces</div>
+            <div style={{ fontSize: 24, fontWeight: 800, color: "var(--text)" }}>{chats.length}</div>
+            <div style={{ fontSize: 11, color: "var(--accent-2)", marginTop: 6, fontWeight: 600 }}>Vector indices compiled</div>
+          </div>
+          <div style={{ padding: 20, borderRadius: 16, background: "var(--bg-surface)", border: "1px solid var(--border)" }}>
+            <div style={{ fontSize: 11, color: "var(--text-3)", fontWeight: 700, textTransform: "uppercase", marginBottom: 6 }}>Subscription Plan</div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: user?.tier === "pro" ? "var(--green)" : "var(--gold)", display:"flex", alignItems:"center", gap:6, marginTop:4 }}>
+              {user?.tier === "pro" ? "💎 Pro Premium" : "⏳ Free Trial"}
+            </div>
+            <div style={{ fontSize: 11, color: "var(--text-3)", marginTop: 8 }}>
+              {user?.tier === "pro" ? "Unlimited processing active" : `${Math.max(0, 3 - chats.filter(c => c.file_info).length)} uploads remaining`}
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 16, marginBottom: 24 }}>
+          <div style={{ padding: 20, borderRadius: 16, background: "var(--bg-surface)", border: "1px solid var(--border)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign:"center" }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text)", marginBottom: 12 }}>Trial Usage Credits</div>
+            <div style={{ position: "relative", width: 100, height: 100, marginBottom: 12 }}>
+              <svg width="100" height="100" viewBox="0 0 36 36" style={{ transform: "rotate(-90deg)" }}>
+                <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="var(--border)" strokeWidth="3" />
+                <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="var(--accent)" strokeWidth="3"
+                  strokeDasharray={`${(chats.filter(c => c.file_info).length / 3) * 100}, 100`}
+                />
+              </svg>
+              <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 800, color: "var(--text)" }}>
+                {chats.filter(c => c.file_info).length}/3
+              </div>
+            </div>
+            <div style={{ fontSize: 11, color: "var(--text-3)", lineHeight: 1.4 }}>
+              Uploaded {chats.filter(c => c.file_info).length} out of 3 maximum free document workspaces. Upgrade to Pro for unlimited files.
+            </div>
+          </div>
+
+          <div style={{ padding: 20, borderRadius: 16, background: "var(--bg-surface)", border: "1px solid var(--border)" }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text)", marginBottom: 12 }}>Recent Reports</div>
+            {recentReports.length === 0 ? (
+              <div style={{ fontSize: 12, color: "var(--text-3)", fontStyle: "italic", padding: "20px 0", textAlign:"center" }}>
+                No reports generated yet. Go to Workspace to compile your first document report.
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {recentReports.map(rep => (
+                  <div key={rep.id} onClick={() => { setActiveReport(rep); setActiveTab("reports"); }} style={{
+                    padding: 12, borderRadius: 10, background: "var(--bg-hover)", border: "1px solid var(--border)",
+                    cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between"
+                  }}>
+                    <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, marginRight: 10 }}>
+                      <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--text)" }}>{rep.title}</div>
+                      <div style={{ fontSize: 10, color: "var(--text-3)", marginTop: 2 }}>{new Date(rep.created_at).toLocaleDateString()}</div>
+                    </div>
+                    <span style={{ fontSize: 12, color: "var(--accent)" }}>View Report →</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div style={{ padding: 20, borderRadius: 16, background: "var(--bg-surface)", border: "1px solid var(--border)", display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:16 }}>
+          <div style={{ flex: 1, minWidth: 240 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "#fff", marginBottom: 4 }}>Launch Workspace</div>
+            <div style={{ fontSize: 12, color: "var(--text-3)" }}>Upload files, chat with PDFs, and generate intelligence insights.</div>
+          </div>
+          <button onClick={() => setActiveTab("workspace")} style={{
+            padding: "10px 20px", borderRadius: 10, background: "var(--grad)", color: "#fff", border: "none",
+            fontSize: 13, fontWeight: 700, cursor: "pointer", boxShadow: "0 2px 10px var(--accent-glow)"
+          }}>
+            Open Workspace
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  const renderReportsView = () => {
+    if (activeReport) {
+      return (
+        <div className="anim-scaleIn" style={{ padding: "8px 0", color: "var(--text)" }}>
+          <div style={{
+            display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between",
+            padding: "12px 16px", background: "var(--bg-surface)", borderRadius: 12, border: "1px solid var(--border)",
+            marginBottom: 20, gap: 10
+          }}>
+            <button onClick={() => setActiveReport(null)} style={{
+              background: "none", border: "none", color: "var(--text-2)", fontSize: 12, cursor: "pointer", fontWeight: 600,
+              display: "flex", alignItems: "center", gap: 4
+            }}>
+              ← Back to list
+            </button>
+            
+            <div style={{ display: "flex", gap: 6 }}>
+              <button onClick={() => handleToggleReportFavorite(activeReport)} style={{
+                padding: "6px 12px", borderRadius: 8, background: "var(--bg-hover)", border: "1px solid var(--border)",
+                color: activeReport.is_favorite ? "var(--gold)" : "var(--text-2)", fontSize: 11, fontWeight: 600, cursor: "pointer"
+              }}>
+                {activeReport.is_favorite ? "★ Favorited" : "☆ Favorite"}
+              </button>
+              <button onClick={() => handleDownloadReportPDF(activeReport)} style={{
+                padding: "6px 12px", borderRadius: 8, background: "var(--bg-hover)", border: "1px solid var(--border)",
+                color: "var(--text-2)", fontSize: 11, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 4
+              }}>
+                ⬇️ PDF
+              </button>
+              <button onClick={() => handleDownloadDocx(activeReport)} style={{
+                padding: "6px 12px", borderRadius: 8, background: "var(--bg-hover)", border: "1px solid var(--border)",
+                color: "var(--text-2)", fontSize: 11, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 4
+              }}>
+                ⬇️ Word
+              </button>
+              <button onClick={() => {
+                navigator.clipboard.writeText(JSON.stringify(activeReport, null, 2));
+                showToast("Copied JSON structure to clipboard");
+              }} style={{
+                padding: "6px 12px", borderRadius: 8, background: "var(--bg-hover)", border: "1px solid var(--border)",
+                color: "var(--text-2)", fontSize: 11, fontWeight: 600, cursor: "pointer"
+              }}>
+                📋 Copy JSON
+              </button>
+              <button onClick={() => handleDeleteReport(activeReport.id)} style={{
+                padding: "6px 12px", borderRadius: 8, background: "rgba(239,68,68,0.1)", border: "none",
+                color: "var(--red)", fontSize: 11, fontWeight: 600, cursor: "pointer"
+              }}>
+                🗑️ Delete
+              </button>
+            </div>
+          </div>
+
+          <div style={{
+            padding: 32, borderRadius: 16, background: "var(--bg-surface)", border: "1px solid var(--border)",
+            boxShadow: "0 4px 20px rgba(0,0,0,0.2)", lineHeight: 1.8, fontSize: 14.5
+          }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "1px solid var(--border)", paddingBottom: 16, marginBottom: 24 }}>
+              <div>
+                <h2 style={{ fontSize: 22, fontWeight: 800, color: "var(--text)", marginBottom: 6 }}>{activeReport.title}</h2>
+                <div style={{ fontSize: 11, color: "var(--text-3)" }}>
+                  Report ID: {activeReport.id} · Generated: {new Date(activeReport.created_at).toLocaleDateString()}
+                </div>
+              </div>
+              <div style={{
+                padding: "6px 12px", borderRadius: 20, background: "linear-gradient(135deg, rgba(34,197,94,0.1) 0%, rgba(59,130,246,0.1) 100%)",
+                border: "1px solid rgba(34,197,94,0.2)", display: "flex", alignItems: "center", gap: 6
+              }}>
+                <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--green)" }}/>
+                <span style={{ fontSize: 11, fontWeight: 700, color: "var(--green)", textTransform: "uppercase" }}>
+                  Confidence: {(activeReport.confidence_score * 100).toFixed(0)}%
+                </span>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+              <div>
+                <h3 style={{ fontSize: 15, fontWeight: 800, color: "var(--accent)", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>1. Executive Summary</h3>
+                <p style={{ color: "var(--text-2)", whiteSpace: "pre-wrap" }}>{activeReport.executive_summary}</p>
+              </div>
+
+              <div>
+                <h3 style={{ fontSize: 15, fontWeight: 800, color: "var(--accent)", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>2. Research Overview</h3>
+                <p style={{ color: "var(--text-2)", whiteSpace: "pre-wrap" }}>{activeReport.research_overview}</p>
+              </div>
+
+              <div>
+                <h3 style={{ fontSize: 15, fontWeight: 800, color: "var(--accent)", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>3. Detailed Analysis</h3>
+                <p style={{ color: "var(--text-2)", whiteSpace: "pre-wrap" }}>{activeReport.detailed_analysis}</p>
+              </div>
+
+              <div>
+                <h3 style={{ fontSize: 15, fontWeight: 800, color: "var(--accent)", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>4. Key Findings</h3>
+                <p style={{ color: "var(--text-2)", whiteSpace: "pre-wrap" }}>{activeReport.key_findings}</p>
+              </div>
+
+              <div>
+                <h3 style={{ fontSize: 15, fontWeight: 800, color: "var(--accent)", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>5. AI Insights</h3>
+                <p style={{ color: "var(--text-2)", whiteSpace: "pre-wrap" }}>{activeReport.ai_insights}</p>
+              </div>
+
+              <div>
+                <h3 style={{ fontSize: 15, fontWeight: 800, color: "var(--accent)", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>6. Recommendations</h3>
+                <p style={{ color: "var(--text-2)", whiteSpace: "pre-wrap" }}>{activeReport.recommendations}</p>
+              </div>
+
+              <div>
+                <h3 style={{ fontSize: 15, fontWeight: 800, color: "var(--accent)", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>7. Conclusion</h3>
+                <p style={{ color: "var(--text-2)", whiteSpace: "pre-wrap" }}>{activeReport.conclusion}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="anim-scaleIn" style={{ padding: "8px 0" }}>
+        <h2 style={{ fontSize: 18, fontWeight: 800, color: "var(--text)", marginBottom: 16 }}>Report History</h2>
+        
+        {reports.length === 0 ? (
+          <div style={{
+            padding: 40, background: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: 16,
+            textAlign: "center", color: "var(--text-3)", fontStyle: "italic"
+          }}>
+            No reports generated yet. Navigate to Workspace, select a research chat with an uploaded document, and click "Generate Report".
+          </div>
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16 }}>
+            {reports.map(rep => (
+              <div key={rep.id} style={{
+                padding: 20, borderRadius: 16, background: "var(--bg-surface)", border: "1px solid var(--border)",
+                display: "flex", flexDirection: "column", justifyContent: "space-between", position: "relative"
+              }}>
+                <div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+                    <h3 style={{ fontSize: 14, fontWeight: 700, color: "#fff", cursor: "pointer", overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", lineHeight: 1.4 }} onClick={() => setActiveReport(rep)}>
+                      {rep.title}
+                    </h3>
+                    <span onClick={() => handleToggleReportFavorite(rep)} style={{ cursor: "pointer", color: rep.is_favorite ? "var(--gold)" : "var(--text-3)" }}>
+                      {rep.is_favorite ? "★" : "☆"}
+                    </span>
+                  </div>
+                  <p style={{ fontSize: 12, color: "var(--text-2)", lineHeight: 1.5, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", marginBottom: 12 }}>
+                    {rep.executive_summary}
+                  </p>
+                </div>
+                
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid var(--border)", paddingTop: 10, marginTop: 4 }}>
+                  <span style={{ fontSize: 10, color: "var(--text-3)" }}>{new Date(rep.created_at).toLocaleDateString()}</span>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button onClick={() => handleDuplicateReport(rep.id)} title="Duplicate" style={{ background:"none", border:"none", color:"var(--text-3)", cursor:"pointer" }}>
+                      Copy
+                    </button>
+                    <button onClick={() => setActiveReport(rep)} style={{ background:"none", border:"none", color:"var(--accent)", fontWeight: 700, cursor:"pointer", fontSize: 12 }}>
+                      Open →
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderBillingView = () => {
+    return (
+      <div className="anim-scaleIn" style={{ padding: "8px 0", color: "var(--text)" }}>
+        <h2 style={{ fontSize: 18, fontWeight: 800, color: "var(--text)", marginBottom: 6 }}>Upgrade Your Plan</h2>
+        <p style={{ fontSize: 13, color: "var(--text-2)", marginBottom: 24 }}>Select a plan that matches your research intensity. Unlock unlimited indexing today.</p>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 20, marginBottom: 32 }}>
+          <div style={{
+            padding: 24, borderRadius: 16, background: "var(--bg-surface)", border: "1px solid var(--border)",
+            display: "flex", flexDirection: "column", justifyContent: "space-between"
+          }}>
+            <div>
+              <div style={{ fontSize: 16, fontWeight: 800, color: "var(--text)" }}>Free Sandbox</div>
+              <div style={{ fontSize: 11, color: "var(--text-3)", marginTop: 2, textTransform: "uppercase" }}>Starter Package</div>
+              <div style={{ fontSize: 28, fontWeight: 800, margin: "20px 0" }}>₹0 <span style={{ fontSize: 12, fontWeight: 500, color: "var(--text-3)" }}>/ forever</span></div>
+              <ul style={{ paddingLeft: 16, fontSize: 12.5, color: "var(--text-2)", display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
+                <li>Limit: 3 document uploads</li>
+                <li>Standard speed RAG</li>
+                <li>Limit: 3 generated reports</li>
+                <li>Basic search parameters</li>
+              </ul>
+            </div>
+            <button disabled style={{
+              width: "100%", padding: 12, borderRadius: 10, background: "var(--bg-hover)", border: "none",
+              color: "var(--text-3)", fontSize: 12, fontWeight: 700
+            }}>
+              Current Active Plan
+            </button>
+          </div>
+
+          <div style={{
+            padding: 24, borderRadius: 16, background: "rgba(124, 91, 245, 0.04)", border: "2px solid var(--accent)",
+            boxShadow: "0 0 20px var(--accent-glow)", display: "flex", flexDirection: "column", justifyContent: "space-between",
+            position: "relative"
+          }}>
+            <div style={{
+              position: "absolute", top: -12, right: 20, padding: "3px 10px", borderRadius: 20, background: "var(--grad)",
+              color: "#fff", fontSize: 9, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em"
+            }}>
+              Popular
+            </div>
+            <div>
+              <div style={{ fontSize: 16, fontWeight: 800, color: "var(--text)" }}>Research Pro</div>
+              <div style={{ fontSize: 11, color: "var(--accent)", marginTop: 2, textTransform: "uppercase", fontWeight:700 }}>Unlimited Insights</div>
+              
+              <div style={{ display: "flex", background: "var(--bg-surface)", padding: 2, borderRadius: 8, border: "1px solid var(--border)", margin: "16px 0" }}>
+                <button onClick={() => setSelectedPlan("1_month")} style={{
+                  flex: 1, padding: "4px 8px", fontSize: 11, border: "none", borderRadius: 6, cursor: "pointer",
+                  background: selectedPlan === "1_month" ? "var(--bg-hover)" : "transparent",
+                  color: selectedPlan === "1_month" ? "var(--text)" : "var(--text-3)",
+                  fontWeight: selectedPlan === "1_month" ? 700 : 500
+                }}>
+                  Monthly
+                </button>
+                <button onClick={() => setSelectedPlan("12_months")} style={{
+                  flex: 1, padding: "4px 8px", fontSize: 11, border: "none", borderRadius: 6, cursor: "pointer",
+                  background: selectedPlan === "12_months" ? "var(--bg-hover)" : "transparent",
+                  color: selectedPlan === "12_months" ? "var(--text)" : "var(--text-3)",
+                  fontWeight: selectedPlan === "12_months" ? 700 : 500
+                }}>
+                  Yearly (Save 20%)
+                </button>
+              </div>
+
+              <div style={{ fontSize: 28, fontWeight: 800, marginBottom: 20 }}>
+                {selectedPlan === "1_month" ? "₹49" : "₹499"}
+                <span style={{ fontSize: 12, fontWeight: 500, color: "var(--text-3)" }}>
+                  {selectedPlan === "1_month" ? " / month" : " / year"}
+                </span>
+              </div>
+              <ul style={{ paddingLeft: 16, fontSize: 12.5, color: "var(--text-2)", display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
+                <li><strong>Unlimited</strong> document uploads</li>
+                <li>Priority speed semantic RAG</li>
+                <li><strong>Unlimited</strong> generated reports</li>
+                <li>All search parameters and export logs</li>
+                <li>24/7 Priority support tickets</li>
+              </ul>
+            </div>
+            <button onClick={handleUpgradePayment} disabled={isUpgrading || user?.tier === "pro"} style={{
+              width: "100%", padding: 12, borderRadius: 10, background: "var(--grad)", border: "none",
+              color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 15px var(--accent-glow)"
+            }}>
+              {user?.tier === "pro" ? "✓ Pro Plan Active" : isUpgrading ? "🔄 Initiating Payment..." : "Upgrade Now"}
+            </button>
+          </div>
+        </div>
+
+        {activeInvoice && (
+          <div style={{
+            padding: 20, borderRadius: 16, background: "var(--bg-surface)", border: "1px solid var(--border)",
+            marginBottom: 24, animation: "slideInUp 0.3s ease"
+          }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <div style={{ fontSize: 14, fontWeight: 700 }}>Order Invoice Generated</div>
+              <button onClick={() => setActiveInvoice(null)} style={{ background: "none", border: "none", color: "var(--text-3)", cursor: "pointer", fontSize: 14 }}>×</button>
+            </div>
+            <div style={{ fontSize: 12, color: "var(--text-2)", lineHeight: 1.6, marginBottom: 14 }}>
+              Payment Captured: <strong>{activeInvoice.razorpay_payment_id}</strong><br/>
+              Plan Selected: {activeInvoice.plan === "1_month" ? "1 Month Pro" : "12 Months Pro"}<br/>
+              Billing Total: {activeInvoice.plan === "1_month" ? "₹49" : "₹499"}<br/>
+            </div>
+            <button onClick={() => downloadInvoicePDF(activeInvoice.razorpay_payment_id, activeInvoice.plan === "1_month" ? "₹49" : "₹499", activeInvoice.plan)} style={{
+              padding: "8px 16px", borderRadius: 8, background: "var(--grad-subtle)", border: "1px solid var(--border)",
+              color: "var(--accent)", fontSize: 11, fontWeight: 700, cursor: "pointer"
+            }}>
+              ⬇️ Download Receipt PDF
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderSettingsView = () => {
+    return (
+      <div className="anim-scaleIn" style={{ padding: "8px 0", color: "var(--text)" }}>
+        <h2 style={{ fontSize: 18, fontWeight: 800, color: "var(--text)", marginBottom: 6 }}>Account Settings</h2>
+        <p style={{ fontSize: 13, color: "var(--text-2)", marginBottom: 24 }}>Manage your profile parameters, security, and notification settings.</p>
+
+        {profileMessage && <div style={{ padding: "10px 14px", background: "rgba(34,197,94,0.08)", border: "1px solid var(--green)", borderRadius: 8, color: "var(--green)", fontSize: 12.5, marginBottom: 16 }}>{profileMessage}</div>}
+        {profileError && <div style={{ padding: "10px 14px", background: "rgba(239,68,68,0.08)", border: "1px solid var(--red)", borderRadius: 8, color: "var(--red)", fontSize: 12.5, marginBottom: 16 }}>{profileError}</div>}
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+          <form onSubmit={handleProfileUpdate} style={{ padding: 20, borderRadius: 16, background: "var(--bg-surface)", border: "1px solid var(--border)" }}>
+            <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>Profile Information</h3>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 16 }}>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: "var(--text-3)", textTransform: "uppercase", display: "block", marginBottom: 6 }}>Display Name</label>
+                <input type="text" value={profileName} onChange={e => setProfileName(e.target.value)}
+                  style={{ width: "100%", padding: "10px 12px", borderRadius: 8, background: "var(--bg-root)", border: "1px solid var(--border)", color: "#fff", outline: "none", fontSize: 13 }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: "var(--text-3)", textTransform: "uppercase", display: "block", marginBottom: 6 }}>Email Address</label>
+                <input type="email" value={profileEmail} onChange={e => setProfileEmail(e.target.value)}
+                  style={{ width: "100%", padding: "10px 12px", borderRadius: 8, background: "var(--bg-root)", border: "1px solid var(--border)", color: "#fff", outline: "none", fontSize: 13 }}
+                />
+              </div>
+            </div>
+            <button type="submit" style={{ padding: "8px 16px", borderRadius: 8, background: "var(--grad)", color: "#fff", border: "none", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+              Save Changes
+            </button>
+          </form>
+
+          <form onSubmit={handlePasswordChange} style={{ padding: 20, borderRadius: 16, background: "var(--bg-surface)", border: "1px solid var(--border)" }}>
+            <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>Security & Password</h3>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 16 }}>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: "var(--text-3)", textTransform: "uppercase", display: "block", marginBottom: 6 }}>Current Password</label>
+                <input type="password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} required
+                  style={{ width: "100%", padding: "10px 12px", borderRadius: 8, background: "var(--bg-root)", border: "1px solid var(--border)", color: "#fff", outline: "none", fontSize: 13 }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: "var(--text-3)", textTransform: "uppercase", display: "block", marginBottom: 6 }}>New Password</label>
+                <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} required
+                  style={{ width: "100%", padding: "10px 12px", borderRadius: 8, background: "var(--bg-root)", border: "1px solid var(--border)", color: "#fff", outline: "none", fontSize: 13 }}
+                />
+              </div>
+            </div>
+            <button type="submit" style={{ padding: "8px 16px", borderRadius: 8, background: "var(--grad)", color: "#fff", border: "none", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+              Change Password
+            </button>
+          </form>
+
+          <div style={{ padding: 20, borderRadius: 16, background: "var(--bg-surface)", border: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: 14 }}>
+            <h3 style={{ fontSize: 14, fontWeight: 700 }}>System Options</h3>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <div style={{ fontSize: 12.5, fontWeight: 700 }}>Theme Mode</div>
+                <div style={{ fontSize: 11, color: "var(--text-3)" }}>Toggle between light and dark display theme</div>
+              </div>
+              <button type="button" onClick={() => setTheme(prev => prev === "dark" ? "light" : "dark")} style={{
+                padding: "6px 12px", borderRadius: 8, background: "var(--bg-hover)", border: "1px solid var(--border)",
+                color: "var(--text)", fontSize: 11, fontWeight: 600, cursor: "pointer"
+              }}>
+                {theme === "dark" ? "☀️ Light Mode" : "🌙 Dark Mode"}
+              </button>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <div style={{ fontSize: 12.5, fontWeight: 700 }}>Email notifications</div>
+                <div style={{ fontSize: 11, color: "var(--text-3)" }}>Receive invoices and system updates</div>
+              </div>
+              <input type="checkbox" checked={notificationOptIn} onChange={e => setNotificationOptIn(e.target.checked)} style={{ accentColor:"var(--accent)" }} />
+            </div>
+          </div>
+
+          <div style={{ padding: 20, borderRadius: 16, background: "var(--bg-surface)", border: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+            <div>
+              <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--red)" }}>Delete Account</div>
+              <div style={{ fontSize: 11, color: "var(--text-3)", marginTop: 2 }}>Permanently erase your data, chats, and subscription settings.</div>
+            </div>
+            <button onClick={handleAccountDelete} style={{
+              padding: "10px 20px", borderRadius: 10, background: "rgba(239,68,68,0.1)", border: "none",
+              color: "var(--red)", fontSize: 12, fontWeight: 700, cursor: "pointer"
+            }}>
+              Delete Account
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderSupportView = () => {
+    return (
+      <div className="anim-scaleIn" style={{ padding: "8px 0", color: "var(--text)" }}>
+        <h2 style={{ fontSize: 18, fontWeight: 800, color: "var(--text)", marginBottom: 6 }}>Help & Support Desk</h2>
+        <p style={{ fontSize: 13, color: "var(--text-2)", marginBottom: 24 }}>Browse FAQ options or contact our lead systems engineers for priority aid.</p>
+
+        <div style={{ padding: 20, borderRadius: 16, background: "var(--bg-surface)", border: "1px solid var(--border)", marginBottom: 24 }}>
+          <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>Frequently Asked Questions</h3>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <details style={{ cursor: "pointer", padding: "6px 0", borderBottom: "1px solid var(--border)" }}>
+              <summary style={{ fontSize: 13, fontWeight: 700, color: "#fff", marginBottom: 6 }}>How does ResearchAI analyze files?</summary>
+              <p style={{ fontSize: 12, color: "var(--text-2)", lineHeight: 1.6, paddingLeft: 10 }}>
+                We parse your files page-by-page, split them into sliding contextual windows of 1,000 characters, vectorize them, and index them in ChromaDB. Asking queries runs a semantic retrieval search to supply real context to our LLM.
+              </p>
+            </details>
+            <details style={{ cursor: "pointer", padding: "6px 0", borderBottom: "1px solid var(--border)" }}>
+              <summary style={{ fontSize: 13, fontWeight: 700, color: "#fff", marginBottom: 6 }}>What document formats are supported?</summary>
+              <p style={{ fontSize: 12, color: "var(--text-2)", lineHeight: 1.6, paddingLeft: 10 }}>
+                We support PDF files, text files (.txt, .md, .csv), and Office formats (.docx, .xlsx, .pptx).
+              </p>
+            </details>
+            <details style={{ cursor: "pointer", padding: "6px 0", borderBottom: "1px solid var(--border)" }}>
+              <summary style={{ fontSize: 13, fontWeight: 700, color: "#fff", marginBottom: 6 }}>Is my research data secure?</summary>
+              <p style={{ fontSize: 12, color: "var(--text-2)", lineHeight: 1.6, paddingLeft: 10 }}>
+                Yes. All document chunks and vector indices are isolated per user session. Data is encrypted at rest and files are immediately erased from server memory after indexing.
+              </p>
+            </details>
+          </div>
+        </div>
+
+        {contactSuccess ? (
+          <div style={{ padding: 24, borderRadius: 16, background: "rgba(34,197,94,0.08)", border: "1px solid var(--green)", color: "var(--green)", textAlign:"center" }}>
+            <h3 style={{ fontWeight: 800, marginBottom: 6 }}>Support Inquiry Logged!</h3>
+            <p style={{ fontSize: 12.5, lineHeight: 1.5 }}>
+              Thank you. A confirmation receipt has been simulated to your email. Our team will review and reply within 24 hours.
+            </p>
+            <button onClick={() => setContactSuccess(false)} style={{
+              marginTop: 14, padding: "6px 16px", borderRadius: 8, background: "var(--green)", border: "none", color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer"
+            }}>
+              Log Another Inquiry
+            </button>
+          </div>
+        ) : (
+          <form onSubmit={handleContactSubmit} style={{ padding: 20, borderRadius: 16, background: "var(--bg-surface)", border: "1px solid var(--border)" }}>
+            <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>Contact Technical Support</h3>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 16 }}>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: "var(--text-3)", textTransform: "uppercase", display: "block", marginBottom: 6 }}>Full Name</label>
+                <input type="text" value={contactName} onChange={e => setContactName(e.target.value)} required placeholder="John Doe"
+                  style={{ width: "100%", padding: "10px 12px", borderRadius: 8, background: "var(--bg-root)", border: "1px solid var(--border)", color: "#fff", outline: "none", fontSize: 13 }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: "var(--text-3)", textTransform: "uppercase", display: "block", marginBottom: 6 }}>Support Email</label>
+                <input type="email" value={contactEmail} onChange={e => setContactEmail(e.target.value)} required placeholder="name@domain.com"
+                  style={{ width: "100%", padding: "10px 12px", borderRadius: 8, background: "var(--bg-root)", border: "1px solid var(--border)", color: "#fff", outline: "none", fontSize: 13 }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: "var(--text-3)", textTransform: "uppercase", display: "block", marginBottom: 6 }}>Detailed Message</label>
+                <textarea value={contactMessage} onChange={e => setContactMessage(e.target.value)} required placeholder="Explain your issue..." rows="4"
+                  style={{ width: "100%", padding: "10px 12px", borderRadius: 8, background: "var(--bg-root)", border: "1px solid var(--border)", color: "#fff", outline: "none", fontSize: 13, resize: "none" }}
+                />
+              </div>
+            </div>
+            <button type="submit" disabled={contactLoading} style={{
+              width: "100%", padding: 12, borderRadius: 10, background: "var(--grad)", color: "#fff", border: "none",
+              fontSize: 12, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 15px var(--accent-glow)"
+            }}>
+              {contactLoading ? "🔄 Sending inquiry..." : "Submit Inquiry"}
+            </button>
+          </form>
+        )}
+      </div>
+    );
+  };
+
+  const renderAdminView = () => {
+    const filteredUsers = adminUsers.filter(u =>
+      u.username.toLowerCase().includes(adminSearch.toLowerCase()) ||
+      u.email.toLowerCase().includes(adminSearch.toLowerCase())
+    );
+
+    return (
+      <div className="anim-scaleIn" style={{ padding: "8px 0", color: "var(--text)" }}>
+        <h2 style={{ fontSize: 18, fontWeight: 800, color: "var(--text)", marginBottom: 6 }}>SaaS Analytics & Administration</h2>
+        <p style={{ fontSize: 13, color: "var(--text-2)", marginBottom: 24 }}>Verify users list, revenue estimates, and active premium subscriptions.</p>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12, marginBottom: 24 }}>
+          <div style={{ padding: 14, borderRadius: 12, background: "var(--bg-surface)", border: "1px solid var(--border)" }}>
+            <div style={{ fontSize: 10, color: "var(--text-3)", fontWeight: 700, textTransform: "uppercase", marginBottom: 4 }}>Total Platform Users</div>
+            <div style={{ fontSize: 20, fontWeight: 800 }}>{adminStats?.total_users ?? 0}</div>
+          </div>
+          <div style={{ padding: 14, borderRadius: 12, background: "var(--bg-surface)", border: "1px solid var(--border)" }}>
+            <div style={{ fontSize: 10, color: "var(--text-3)", fontWeight: 700, textTransform: "uppercase", marginBottom: 4 }}>Active Pro Accounts</div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: "var(--green)" }}>{adminStats?.active_subscriptions ?? 0}</div>
+          </div>
+          <div style={{ padding: 14, borderRadius: 12, background: "var(--bg-surface)", border: "1px solid var(--border)" }}>
+            <div style={{ fontSize: 10, color: "var(--text-3)", fontWeight: 700, textTransform: "uppercase", marginBottom: 4 }}>Monthly Revenue Est.</div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: "var(--accent)" }}>₹{(adminStats?.total_revenue ?? 0).toFixed(2)}</div>
+          </div>
+          <div style={{ padding: 14, borderRadius: 12, background: "var(--bg-surface)", border: "1px solid var(--border)" }}>
+            <div style={{ fontSize: 10, color: "var(--text-3)", fontWeight: 700, textTransform: "uppercase", marginBottom: 4 }}>Monthly Growth (30d)</div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: "var(--accent-2)" }}>+{adminStats?.users_growth ?? 0} users</div>
+          </div>
+        </div>
+
+        <div style={{ padding: 20, borderRadius: 16, background: "var(--bg-surface)", border: "1px solid var(--border)" }}>
+          <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", marginBottom: 14, gap: 10 }}>
+            <h3 style={{ fontSize: 14, fontWeight: 700 }}>User Management</h3>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 12px", borderRadius: 8, background: "var(--bg-root)", border: "1px solid var(--border)" }}>
+              {icon(I.Search, 12)}
+              <input value={adminSearch} onChange={e => setAdminSearch(e.target.value)} placeholder="Search users..."
+                style={{ background: "transparent", border: "none", outline:"none", color: "var(--text)", fontSize: 12, fontFamily: "inherit" }}
+              />
+            </div>
+          </div>
+
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12.5, textAlign: "left" }}>
+              <thead>
+                <tr style={{ borderBottom: "1px solid var(--border)", color: "var(--text-3)" }}>
+                  <th style={{ padding: "8px 10px" }}>Username</th>
+                  <th style={{ padding: "8px 10px" }}>Email</th>
+                  <th style={{ padding: "8px 10px" }}>Tier</th>
+                  <th style={{ padding: "8px 10px" }}>Status</th>
+                  <th style={{ padding: "8px 10px" }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredUsers.map(u => (
+                  <tr key={u.id} style={{ borderBottom: "1px solid var(--border)" }}>
+                    <td style={{ padding: "10px", fontWeight: 700 }}>@{u.username}</td>
+                    <td style={{ padding: "10px", color: "var(--text-2)" }}>{u.email}</td>
+                    <td style={{ padding: "10px" }}>
+                      <span style={{
+                        padding: "2px 6px", borderRadius: 4, fontSize: 10, fontWeight: 700,
+                        background: u.tier === "pro" ? "rgba(34,197,94,0.1)" : "rgba(113,113,122,0.1)",
+                        color: u.tier === "pro" ? "var(--green)" : "var(--text-3)"
+                      }}>
+                        {u.tier.toUpperCase()}
+                      </span>
+                    </td>
+                    <td style={{ padding: "10px" }}>
+                      <span style={{
+                        padding: "2px 6px", borderRadius: 4, fontSize: 10, fontWeight: 700,
+                        background: u.status === "active" ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)",
+                        color: u.status === "active" ? "var(--green)" : "var(--red)"
+                      }}>
+                        {u.status.toUpperCase()}
+                      </span>
+                    </td>
+                    <td style={{ padding: "10px" }}>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button onClick={() => handleToggleUserStatus(u)} style={{
+                          padding: "4px 8px", borderRadius: 6, background: "var(--bg-root)", border: "1px solid var(--border)",
+                          color: "var(--text-2)", fontSize: 11, fontWeight: 600, cursor: "pointer"
+                        }}>
+                          {u.status === "active" ? "Suspend" : "Unsuspend"}
+                        </button>
+                        <button onClick={() => handleDeleteUser(u.id)} style={{
+                          padding: "4px 8px", borderRadius: 6, background: "rgba(239,68,68,0.08)", border: "none",
+                          color: "var(--red)", fontSize: 11, fontWeight: 600, cursor: "pointer"
+                        }}>
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div style={{ display:"flex", height:"100vh", height:"100dvh", width:"100vw", background:"var(--bg-root)", position:"relative", overflow:"hidden" }}>
@@ -1651,7 +2765,7 @@ export default function HomeGPT() {
         {/* Top Header */}
         <header role="banner" style={{
           display:"flex", alignItems:"center", justifyContent:"space-between", padding:"10px 16px",
-          background:"rgba(11,11,16,0.7)", backdropFilter:"blur(12px)", borderBottom:"1px solid var(--border)", minHeight:54,
+          background:"var(--bg-surface)", borderBottom:"1px solid var(--border)", minHeight:54,
         }}>
           <div style={{ display:"flex", alignItems:"center", gap:12 }}>
             {isMobile && (
@@ -1665,10 +2779,21 @@ export default function HomeGPT() {
               </button>
             )}
             <div>
-              <h1 onClick={() => setActivePage("workspace")} style={{ fontSize:15, fontWeight:700, color:"var(--text)", letterSpacing:"-0.01em", lineHeight:1.2, cursor:"pointer" }}>
-                {activePage === "workspace" ? (activeChat ? activeChat.title : "Workspace") : activePage === "privacy" ? "Privacy Policy" : activePage === "terms" ? "Terms of Service" : activePage === "refund" ? "Cancellation & Refund Policy" : "Contact Us"}
+              <h1 onClick={() => { setActivePage("workspace"); setActiveTab("workspace"); }} style={{ fontSize:15, fontWeight:700, color:"var(--text)", letterSpacing:"-0.01em", lineHeight:1.2, cursor:"pointer" }}>
+                {activePage === "workspace" ? (
+                  activeTab === "workspace" ? (activeChat ? activeChat.title : "Workspace") :
+                  activeTab === "dashboard" ? "Dashboard" :
+                  activeTab === "reports" ? "My Reports" :
+                  activeTab === "billing" ? "Pricing & Subscription" :
+                  activeTab === "settings" ? "Settings" :
+                  activeTab === "support" ? "Support" : "Admin Panel"
+                ) : (
+                  activePage === "privacy" ? "Privacy Policy" :
+                  activePage === "terms" ? "Terms of Service" :
+                  activePage === "refund" ? "Cancellation & Refund Policy" : "Contact Us"
+                )}
               </h1>
-              {activePage === "workspace" && activeChat?.file_info && (
+              {activePage === "workspace" && activeTab === "workspace" && activeChat?.file_info && (
                 <div style={{ fontSize:11, color:"var(--text-3)" }}>
                   📄 {activeChat.file_info.filename} · {activeChat.file_info.chunks} vector chunks
                 </div>
@@ -1678,11 +2803,22 @@ export default function HomeGPT() {
 
           {/* Action buttons */}
           <div style={{ display:"flex", gap:6 }}>
-            {activePage === "workspace" && activeChat?.file_info && (
+            {activePage === "workspace" && activeTab === "workspace" && activeChat?.file_info && (
               <>
+                <button onClick={handleCreateReport} disabled={generatingReport} style={{
+                  padding:"7px 14px", borderRadius:9, background:"var(--grad)", border:"none",
+                  color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", gap:5,
+                  boxShadow:"0 2px 8px var(--accent-glow)"
+                }}>
+                  {generatingReport ? (
+                    <>⏳ Generating...</>
+                  ) : (
+                    <>{icon(I.Star, 13)} Generate Report</>
+                  )}
+                </button>
                 <button onClick={handleSummary} disabled={isGeneratingSummary} style={{
-                  padding:"7px 14px", borderRadius:9, background:"var(--grad-subtle)", border:"1px solid var(--border-active)",
-                  color:"#c4b5fd", fontSize:12, fontWeight:600, cursor:"pointer", display:"flex", alignItems:"center", gap:5
+                  padding:"7px 14px", borderRadius:9, background:"var(--grad-subtle)", border:"1px solid var(--border)",
+                  color:"var(--accent)", fontSize:12, fontWeight:600, cursor:"pointer", display:"flex", alignItems:"center", gap:5
                 }}>
                   {icon(I.Zap, 13)} <span>Summary</span>
                 </button>
@@ -1690,7 +2826,7 @@ export default function HomeGPT() {
                   padding:"7px 14px", borderRadius:9, background:"var(--bg-surface)", border:"1px solid var(--border)",
                   color:"var(--text-2)", fontSize:12, fontWeight:600, cursor:"pointer", display:"flex", alignItems:"center", gap:5
                 }}>
-                  {icon(I.Down, 13)} <span>Export</span>
+                  {icon(I.Down, 13)} <span>Export Chat</span>
                 </button>
               </>
             )}
@@ -1701,7 +2837,7 @@ export default function HomeGPT() {
         <div style={{ flex:1, overflowY:"auto", padding:"12px 0", display:"flex", flexDirection:"column" }}>
           <div style={{ maxWidth:800, margin:"0 auto", padding:"0 16px", display:"flex", flexDirection:"column", minHeight:"100%", width:"100%" }}>
             
-            {activePage === "workspace" && (
+            {activePage === "workspace" && activeTab === "workspace" && (
               <>
                 {!activeChat || ((activeChat.messages || []).length === 0 && !activeChat.file_info) ? (
                   <Welcome fileRef={fileRef} />
@@ -1721,6 +2857,13 @@ export default function HomeGPT() {
                 <div ref={endRef} />
               </>
             )}
+
+            {activePage === "workspace" && activeTab === "dashboard" && renderDashboardView()}
+            {activePage === "workspace" && activeTab === "reports" && renderReportsView()}
+            {activePage === "workspace" && activeTab === "billing" && renderBillingView()}
+            {activePage === "workspace" && activeTab === "settings" && renderSettingsView()}
+            {activePage === "workspace" && activeTab === "support" && renderSupportView()}
+            {activePage === "workspace" && activeTab === "admin" && renderAdminView()}
 
             {activePage === "privacy" && (
               <div className="anim-scaleIn" style={{ padding:"24px 0", color:"var(--text-2)" }}>
@@ -1790,7 +2933,7 @@ export default function HomeGPT() {
         </div>
 
         {/* Suggestions chips */}
-        {activePage === "workspace" && activeChat?.file_info && (activeChat.messages || []).length <= 3 && (
+        {activePage === "workspace" && activeTab === "workspace" && activeChat?.file_info && (activeChat.messages || []).length <= 3 && (
           <div style={{ display:"flex", justifyContent:"center", gap:6, padding:"0 16px 8px", flexWrap:"wrap" }}>
             {SUGGESTIONS.map((s, i) => (
               <button key={i} onClick={() => { setQuestion(s.text); }} style={{
@@ -1804,14 +2947,22 @@ export default function HomeGPT() {
         )}
 
         {/* Errors & Upload alerts */}
-        {activePage === "workspace" && uploadError && (
+        {activePage === "workspace" && activeTab === "workspace" && uploadError && (
           <div style={{ margin:"0 16px 8px", maxWidth:800, marginLeft:"auto", marginRight:"auto", padding:"10px 14px", borderRadius:10, background:"rgba(239,68,68,0.08)", border:"1px solid rgba(239,68,68,0.15)", fontSize:12, color:"var(--red)", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
             {uploadError}
             <button onClick={() => setUploadError(null)} style={{ background:"none", border:"none", color:"var(--red)", cursor:"pointer" }}>{icon(I.X, 12)}</button>
           </div>
         )}
 
-        {activePage === "workspace" && isUploading && (
+        {/* Errors & Report Generation alerts */}
+        {activePage === "workspace" && reportError && (
+          <div style={{ margin:"0 16px 8px", maxWidth:800, marginLeft:"auto", marginRight:"auto", padding:"10px 14px", borderRadius:10, background:"rgba(239,68,68,0.08)", border:"1px solid rgba(239,68,68,0.15)", fontSize:12, color:"var(--red)", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+            {reportError}
+            <button onClick={() => setReportError(null)} style={{ background:"none", border:"none", color:"var(--red)", cursor:"pointer" }}>{icon(I.X, 12)}</button>
+          </div>
+        )}
+
+        {activePage === "workspace" && activeTab === "workspace" && isUploading && (
           <div style={{ margin:"0 16px 8px", maxWidth:800, marginLeft:"auto", marginRight:"auto" }}>
             <div style={{ height:3, borderRadius:3, background:"var(--bg-surface)", overflow:"hidden" }}>
               <div style={{ height:"100%", width:`${uploadProgress}%`, background:"var(--grad)", borderRadius:3, transition:"width 0.3s" }}/>
@@ -1820,9 +2971,25 @@ export default function HomeGPT() {
           </div>
         )}
 
+        {/* Report progress animations overlay */}
+        {activePage === "workspace" && generatingReport && (
+          <div style={{ margin:"0 16px 8px", maxWidth:800, marginLeft:"auto", marginRight:"auto", background:"var(--bg-surface)", border:"1px solid var(--border)", borderRadius:16, padding:20, display:"flex", flexDirection:"column", gap:12, animation:"pulseGlow 2s ease-in-out infinite" }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <div style={{ fontSize:13, fontWeight:800, color:"var(--accent)" }}>🔬 AI Research Intelligence Report Compiler</div>
+              <div style={{ fontSize:11, color:"var(--text-3)", fontFamily:"'JetBrains Mono',monospace" }}>Chunking vector datasets...</div>
+            </div>
+            <div style={{ height:4, borderRadius:2, background:"var(--border)", overflow:"hidden" }}>
+              <div style={{ height:"100%", width:"75%", background:"var(--grad)", borderRadius:2, animation:"pulse 1.5s infinite" }}/>
+            </div>
+            <div style={{ fontSize:11, color:"var(--text-2)", lineHeight:1.4 }}>
+              Parsing ChromaDB contexts and structuring formal Markdown report with confidence scores. Do not navigate away.
+            </div>
+          </div>
+        )}
+
         {/* Input / Footer Area */}
         <div style={{ padding:"8px 16px 16px", paddingBottom: isMobile ? "max(16px, env(safe-area-inset-bottom))" : 16 }}>
-          {activePage === "workspace" && (
+          {activePage === "workspace" && activeTab === "workspace" && (
             <div style={{
               maxWidth:800, margin:"0 auto", display:"flex", alignItems:"flex-end", gap:8,
               background:"rgba(20,20,28,0.7)", backdropFilter:"blur(16px)", border:"1px solid var(--border)",

@@ -45,7 +45,7 @@ def get_user_from_token(token: str):
             if len(parts) >= 2:
                 email = parts[1]
         
-        cursor.execute("SELECT id, email, username, role, is_2fa_enabled, secret_2fa, tier, trial_starts_at, subscription_expires_at FROM users WHERE email = ?", (email.lower(),))
+        cursor.execute("SELECT id, email, username, role, is_2fa_enabled, secret_2fa, tier, trial_starts_at, subscription_expires_at, name, status, is_verified FROM users WHERE email = ?", (email.lower(),))
         user = cursor.fetchone()
         if not user:
             now = int(time.time() * 1000)
@@ -57,11 +57,11 @@ def get_user_from_token(token: str):
                 import secrets
                 username = f"{username}_{secrets.token_hex(3)}"
             cursor.execute(
-                "INSERT INTO users (id, email, username, password_hash, salt, role, is_2fa_enabled, secret_2fa, tier, trial_starts_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (social_id, email.lower(), username.lower(), "mocked_hash", "mocked_salt", "user", 0, None, "free", now, now)
+                "INSERT INTO users (id, email, username, password_hash, salt, role, is_2fa_enabled, secret_2fa, tier, trial_starts_at, created_at, name, status, is_verified) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (social_id, email.lower(), username.lower(), "mocked_hash", "mocked_salt", "user", 0, None, "free", now, now, username.title(), "active", 1)
             )
             conn.commit()
-            cursor.execute("SELECT id, email, username, role, is_2fa_enabled, secret_2fa, tier, trial_starts_at, subscription_expires_at FROM users WHERE email = ?", (email.lower(),))
+            cursor.execute("SELECT id, email, username, role, is_2fa_enabled, secret_2fa, tier, trial_starts_at, subscription_expires_at, name, status, is_verified FROM users WHERE email = ?", (email.lower(),))
             user = cursor.fetchone()
         
         user_id = user['id']
@@ -91,7 +91,7 @@ def get_user_from_token(token: str):
     
     user_id = row['user_id']
     cursor.execute(
-        "SELECT id, email, username, role, is_2fa_enabled, secret_2fa, tier, trial_starts_at, subscription_expires_at FROM users WHERE id = ?",
+        "SELECT id, email, username, role, is_2fa_enabled, secret_2fa, tier, trial_starts_at, subscription_expires_at, name, status, is_verified FROM users WHERE id = ?",
         (user_id,)
     )
     user = cursor.fetchone()

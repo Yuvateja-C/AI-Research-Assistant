@@ -1,4 +1,3 @@
-from urllib import response
 from groq import Groq
 from dotenv import load_dotenv
 import os

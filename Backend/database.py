@@ -71,6 +71,28 @@ def init_db():
         FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
     )
     """)
+    # Reports
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS reports (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        chat_id TEXT,
+        executive_summary TEXT,
+        research_overview TEXT,
+        detailed_analysis TEXT,
+        key_findings TEXT,
+        ai_insights TEXT,
+        recommendations TEXT,
+        conclusion TEXT,
+        confidence_score REAL,
+        is_favorite INTEGER DEFAULT 0,
+        is_deleted INTEGER DEFAULT 0,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+    """)
     # Database migrations for tier and trial columns
     try:
         cursor.execute("ALTER TABLE users ADD COLUMN tier TEXT DEFAULT 'free'")
@@ -82,6 +104,30 @@ def init_db():
         pass
     try:
         cursor.execute("ALTER TABLE users ADD COLUMN subscription_expires_at INTEGER")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN name TEXT")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN status TEXT DEFAULT 'active'")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN is_verified INTEGER DEFAULT 0")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN verification_token TEXT")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN reset_token TEXT")
+    except sqlite3.OperationalError:
+        pass
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN reset_token_expires INTEGER")
     except sqlite3.OperationalError:
         pass
 
