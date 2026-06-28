@@ -1,7 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
 @import "tailwindcss";
 
-:root {
+:root, :root[data-theme="dark"] {
   --bg-root: #0b0b10;
   --bg-sidebar: rgba(14, 14, 20, 0.97);
   --bg-surface: rgba(255, 255, 255, 0.028);
@@ -29,6 +29,36 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+:root[data-theme="light"] {
+  --bg-root: #f8fafc;
+  --bg-sidebar: #ffffff;
+  --bg-surface: rgba(0, 0, 0, 0.02);
+  --bg-hover: rgba(0, 0, 0, 0.04);
+  --bg-active: rgba(124, 91, 245, 0.08);
+  --accent: #6366f1;
+  --accent-2: #2563eb;
+  --accent-glow: rgba(99, 102, 241, 0.15);
+  --grad: linear-gradient(135deg, #6366f1 0%, #2563eb 100%);
+  --grad-subtle: linear-gradient(135deg, rgba(99,102,241,0.08) 0%, rgba(37,99,235,0.05) 100%);
+  --text: #0f172a;
+  --text-2: #475569;
+  --text-3: #94a3b8;
+  --border: rgba(0, 0, 0, 0.08);
+  --border-active: rgba(99, 102, 241, 0.3);
+  --green: #16a34a;
+  --red: #dc2626;
+  --gold: #d97706;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  line-height: 1.6;
+  color: var(--text);
+  background: var(--bg-root);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
 
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
