@@ -202,10 +202,6 @@ class LoginRequest(BaseModel):
     password: str
     code_2fa: str = None
 
-class SocialCallbackRequest(BaseModel):
-    provider: str
-    token: str
-
 class RecoverRequest(BaseModel):
     email: str
 
@@ -368,92 +364,7 @@ def login(data: LoginRequest, response: Response):
         max_age=7 * 24 * 3600,
         samesite="lax",
         secure=True
-    )
     return {"message": "Login successful", "token": token}
-
-@app.post("/auth/social-callback")
-def social_callback(data: SocialCallbackRequest, response: Response):
-    import requests
-    email = None
-    name = None
-    
-    if data.provider == "google":
-        try:
-            res = requests.get(f"https://www.googleapis.com/oauth2/v3/userinfo?access_token={data.token}")
-            if not res.ok:
-                raise HTTPException(status_code=400, detail="Failed to verify Google token")
-            info = res.json()
-            email = info.get("email")
-            name = info.get("name") or info.get("given_name")
-        except Exception as e:
-            raise HTTPException(status_code=400, detail=f"Google token verification failed: {str(e)}")
-            
-    elif data.provider == "microsoft":
-        try:
-            headers = {"Authorization": f"Bearer {data.token}"}
-            res = requests.get("https://graph.microsoft.com/v1.0/me", headers=headers)
-            if not res.ok:
-                raise HTTPException(status_code=400, detail="Failed to verify Microsoft token")
-            info = res.json()
-            email = info.get("mail") or info.get("userPrincipalName")
-            name = info.get("displayName")
-        except Exception as e:
-            raise HTTPException(status_code=400, detail=f"Microsoft token verification failed: {str(e)}")
-            
-    else:
-        raise HTTPException(status_code=400, detail="Invalid social provider")
-        
-    if not email:
-        raise HTTPException(status_code=400, detail="Could not retrieve email from provider")
-        
-    email_lower = email.lower()
-    conn = get_db()
-    cursor = conn.cursor()
-    
-    cursor.execute(
-        "SELECT id, email, username, role, is_2fa_enabled, secret_2fa, tier, trial_starts_at, subscription_expires_at, name, status, is_verified FROM users WHERE email = ?",
-        (email_lower,)
-    )
-    user_row = cursor.fetchone()
-    
-    if not user_row:
-        now = int(time.time() * 1000)
-        user_id = str(uuid.uuid4())
-        username = email_lower.split("@")[0]
-        cursor.execute("SELECT id FROM users WHERE username = ?", (username,))
-        if cursor.fetchone():
-            username = f"{username}_{secrets.token_hex(3)}"
-            
-        real_name = name if name else username.title()
-        
-        cursor.execute(
-            "INSERT INTO users (id, email, username, password_hash, salt, role, is_2fa_enabled, secret_2fa, tier, trial_starts_at, created_at, name, status, is_verified) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (user_id, email_lower, username, "oauth_mocked_hash", "oauth_mocked_salt", "user", 0, None, "free", now, now, real_name, "active", 1)
-        )
-        conn.commit()
-        
-        cursor.execute(
-            "SELECT id, email, username, role, is_2fa_enabled, secret_2fa, tier, trial_starts_at, subscription_expires_at, name, status, is_verified FROM users WHERE id = ?",
-            (user_id,)
-        )
-        user_row = cursor.fetchone()
-        
-    user_dict = dict(user_row)
-    conn.close()
-    
-    if user_dict["status"] == "suspended":
-        raise HTTPException(status_code=403, detail="Your account has been suspended. Please contact support.")
-        
-    token = create_session(user_dict["id"])
-    response.set_cookie(
-        key="session_token",
-        value=token,
-        httponly=True,
-        max_age=7 * 24 * 3600,
-        samesite="lax",
-        secure=True
-    )
-    return {"message": "Social login successful", "token": token}
 
 @app.post("/auth/logout")
 def logout(request: Request, response: Response):

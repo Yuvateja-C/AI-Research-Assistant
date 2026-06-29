@@ -38,47 +38,6 @@ def get_user_from_token(token: str):
     conn = get_db()
     cursor = conn.cursor()
     
-    if token.startswith("mock_social_") or token.startswith("mock_social:"):
-        email = "social_user@example.com"
-        if token.startswith("mock_social:"):
-            parts = token.split(":")
-            if len(parts) >= 2:
-                email = parts[1]
-        
-        cursor.execute("SELECT id, email, username, role, is_2fa_enabled, secret_2fa, tier, trial_starts_at, subscription_expires_at, name, status, is_verified FROM users WHERE email = ?", (email.lower(),))
-        user = cursor.fetchone()
-        if not user:
-            now = int(time.time() * 1000)
-            social_id = str(__import__('uuid').uuid4())
-            username = email.split("@")[0]
-            # Ensure unique username
-            cursor.execute("SELECT id FROM users WHERE username = ?", (username.lower(),))
-            if cursor.fetchone():
-                import secrets
-                username = f"{username}_{secrets.token_hex(3)}"
-            cursor.execute(
-                "INSERT INTO users (id, email, username, password_hash, salt, role, is_2fa_enabled, secret_2fa, tier, trial_starts_at, created_at, name, status, is_verified) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (social_id, email.lower(), username.lower(), "mocked_hash", "mocked_salt", "user", 0, None, "free", now, now, username.title(), "active", 1)
-            )
-            conn.commit()
-            cursor.execute("SELECT id, email, username, role, is_2fa_enabled, secret_2fa, tier, trial_starts_at, subscription_expires_at, name, status, is_verified FROM users WHERE email = ?", (email.lower(),))
-            user = cursor.fetchone()
-        
-        user_id = user['id']
-        now_sec = int(time.time())
-        expiry = now_sec + 7 * 24 * 3600
-        cursor.execute("SELECT user_id FROM sessions WHERE token = ?", (token,))
-        session_row = cursor.fetchone()
-        if not session_row:
-            session_id = __import__('secrets').token_hex(8)
-            cursor.execute(
-                "INSERT INTO sessions (id, token, user_id, expires_at) VALUES (?, ?, ?, ?)",
-                (session_id, token, user_id, expiry)
-            )
-            conn.commit()
-        conn.close()
-        return dict(user)
-
     now = int(time.time())
     cursor.execute(
         "SELECT user_id, expires_at FROM sessions WHERE token = ? AND expires_at > ?",
