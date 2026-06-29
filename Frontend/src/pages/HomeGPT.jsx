@@ -5,6 +5,8 @@ import jsPDF from "jspdf";
 /*  CONSTANTS & HELPERS                         */
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 const API = (import.meta.env.VITE_API_URL || "https://api-research-assistant-bseo.onrender.com").replace(/\/+$/, "");
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
+const MICROSOFT_CLIENT_ID = import.meta.env.VITE_MICROSOFT_CLIENT_ID || "";
 const uid = () => Math.random().toString(36).substring(2, 11);
 
 const relativeTime = (ts) => {
@@ -351,6 +353,49 @@ export default function HomeGPT() {
       setLoadingAuth(false);
     }
   }, []);
+
+  useEffect(() => {
+    const parseOAuthCallback = async () => {
+      const hash = window.location.hash;
+      if (!hash) return;
+      
+      const params = new URLSearchParams(hash.substring(1));
+      const accessToken = params.get("access_token");
+      const state = params.get("state");
+      
+      if (accessToken && (state === "google" || state === "microsoft")) {
+        setLoadingAuth(true);
+        window.history.replaceState(null, null, window.location.origin + window.location.pathname);
+        
+        try {
+          const res = await fetch(`${API}/auth/social-callback`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              provider: state,
+              token: accessToken
+            })
+          });
+          
+          if (res.ok) {
+            const data = await res.json();
+            localStorage.setItem("session_token", data.token);
+            setToken(data.token);
+            showToast("Successfully authenticated via " + (state === "google" ? "Google" : "Microsoft"), "success");
+          } else {
+            const errData = await res.json();
+            setAuthError(errData.detail || "Social authentication failed.");
+            setLoadingAuth(false);
+          }
+        } catch (err) {
+          console.error("Social authentication error:", err);
+          setAuthError("Failed to connect to the authentication server.");
+          setLoadingAuth(false);
+        }
+      }
+    };
+    parseOAuthCallback();
+  }, [showToast]);
 
   useEffect(() => {
     if (token) {
@@ -1147,6 +1192,21 @@ export default function HomeGPT() {
 
   const handleSocialLoginSim = (provider) => {
     setAuthError("");
+    
+    if (provider === "google" && GOOGLE_CLIENT_ID) {
+      const redirectUri = `${window.location.origin}/`;
+      const googleUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${GOOGLE_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=email%20profile%20openid&state=google`;
+      window.location.href = googleUrl;
+      return;
+    }
+    
+    if (provider === "microsoft" && MICROSOFT_CLIENT_ID) {
+      const redirectUri = `${window.location.origin}/`;
+      const microsoftUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=${MICROSOFT_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=user.read%20openid%20profile%20email&state=microsoft`;
+      window.location.href = microsoftUrl;
+      return;
+    }
+
     const savedEmail = localStorage.getItem("last_social_email");
     if (savedEmail) {
       setLoadingAuth(true);
