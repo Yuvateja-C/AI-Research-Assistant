@@ -1896,24 +1896,6 @@ export default function HomeGPT() {
 
           {authView === "login" && (
             <form onSubmit={handleLogin} style={{ display:"flex", flexDirection:"column", gap:14 }}>
-              {/* Simplified Login Onboarding Info Box */}
-              <div style={{
-                background: "rgba(66, 133, 244, 0.06)",
-                border: "1px solid rgba(66, 133, 244, 0.15)",
-                borderRadius: 12,
-                padding: 12,
-                fontSize: 12,
-                lineHeight: "1.5",
-                color: "var(--text-2)",
-                boxShadow: "inset 0 1px 1px rgba(255,255,255,0.05)"
-              }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, fontWeight: 700, color: "#fff" }}>
-                  <span style={{ fontSize: 14 }}>💡</span>
-                  <span>Simplified Login Process</span>
-                </div>
-                We understand that traditional logins can be cumbersome. Our new system allows you to log in quickly and securely using your existing Google or Microsoft account. Simply connect your account once, and you'll enjoy faster, seamless access without needing to create or remember separate credentials ever again.
-              </div>
-
               <div>
                 <label htmlFor="username" style={{ fontSize:11, fontWeight:600, color:"var(--text-2)", textTransform:"uppercase", display:"block", marginBottom:6 }}>Username or Email</label>
                 <input required id="username" type="text" value={email} onChange={e => setEmail(e.target.value)} placeholder="name@domain.com"
