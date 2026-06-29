@@ -242,6 +242,8 @@ export default function HomeGPT() {
   const [recoverySent, setRecoverySent] = useState(false);
   const [recoveryLink, setRecoveryLink] = useState("");
   const [resetToken, setResetToken] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [isSubmittingAuth, setIsSubmittingAuth] = useState(false);
 
   /* App State */
   const [chats, setChats] = useState([]);
@@ -428,6 +430,7 @@ export default function HomeGPT() {
   const handleLogin = async (e) => {
     e.preventDefault();
     setAuthError("");
+    setIsSubmittingAuth(true);
     try {
       const r = await fetch(`${API}/auth/login`, {
         method: "POST",
@@ -437,11 +440,13 @@ export default function HomeGPT() {
       const d = await r.json();
       if (!r.ok) {
         setAuthError(d.detail || "Login failed");
+        setIsSubmittingAuth(false);
         return;
       }
       if (d.requires_2fa) {
         setRequires2fa(true);
         setAuthError("Please input your 2FA authentication code.");
+        setIsSubmittingAuth(false);
         return;
       }
       localStorage.setItem("session_token", d.token);
@@ -450,12 +455,15 @@ export default function HomeGPT() {
       setCode2fa("");
     } catch {
       setAuthError("Network connection failure");
+    } finally {
+      setIsSubmittingAuth(false);
     }
   };
 
   const handleRegister = async (e) => {
     e.preventDefault();
     setAuthError("");
+    setIsSubmittingAuth(true);
     try {
       const r = await fetch(`${API}/auth/register`, {
         method: "POST",
@@ -472,6 +480,7 @@ export default function HomeGPT() {
 
       if (!r.ok) {
         setAuthError(d.detail || "Registration failed");
+        setIsSubmittingAuth(false);
         return;
       }
       
@@ -479,6 +488,7 @@ export default function HomeGPT() {
       if (d.verification_token) {
         setRecoveryLink(`${API}/auth/verify-email?token=${d.verification_token}`);
         setAuthView("verify_email_sent");
+        setIsSubmittingAuth(false);
         return;
       }
 
@@ -497,6 +507,7 @@ export default function HomeGPT() {
 
       if (!loginRes.ok) {
         setAuthError(loginData.detail || "Automatic login failed");
+        setIsSubmittingAuth(false);
         return;
       }
 
@@ -504,6 +515,8 @@ export default function HomeGPT() {
       setToken(loginData.token);
     } catch (err) {
       setAuthError("Registration failed: " + (err.message || "Connection error"));
+    } finally {
+      setIsSubmittingAuth(false);
     }
   };
 
@@ -1870,9 +1883,16 @@ export default function HomeGPT() {
               </div>
               <div>
                 <label htmlFor="password" style={{ fontSize:11, fontWeight:600, color:"var(--text-2)", textTransform:"uppercase", display:"block", marginBottom:6 }}>Password</label>
-                <input required id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••"
-                  style={{ width:"100%", padding:"10px 14px", borderRadius:10, background:"var(--bg-surface)", border:"1px solid var(--border)", color:"#fff", outline:"none", fontSize:14 }}
-                />
+                <div style={{ position: "relative" }}>
+                  <input required id="password" type={showPassword ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••"
+                    style={{ width:"100%", padding:"10px 48px 10px 14px", borderRadius:10, background:"var(--bg-surface)", border:"1px solid var(--border)", color:"#fff", outline:"none", fontSize:14 }}
+                  />
+                  <button type="button" onClick={() => setShowPassword(!showPassword)} style={{
+                    position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "var(--text-3)", cursor: "pointer", fontSize: 16
+                  }}>
+                    {showPassword ? "👁️" : "🙈"}
+                  </button>
+                </div>
               </div>
               {requires2fa && (
                 <div className="anim-slideUp">
@@ -1882,8 +1902,8 @@ export default function HomeGPT() {
                   />
                 </div>
               )}
-              <button type="submit" style={{ width:"100%", padding:"12px", borderRadius:12, background:"var(--grad)", color:"#fff", border:"none", fontSize:14, fontWeight:700, cursor:"pointer", boxShadow:"0 4px 16px var(--accent-glow)", marginTop:8 }}>
-                Authorize Access
+              <button type="submit" disabled={isSubmittingAuth} style={{ width:"100%", padding:"12px", borderRadius:12, background:"var(--grad)", color:"#fff", border:"none", fontSize:14, fontWeight:700, cursor:isSubmittingAuth ? "not-allowed" : "pointer", boxShadow:"0 4px 16px var(--accent-glow)", marginTop:8, opacity:isSubmittingAuth ? 0.7 : 1 }}>
+                {isSubmittingAuth ? "Authorizing Access..." : "Authorize Access"}
               </button>
 
               <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginTop:10 }}>
@@ -1909,16 +1929,23 @@ export default function HomeGPT() {
               </div>
               <div>
                 <label htmlFor="reg-password" style={{ fontSize:11, fontWeight:600, color:"var(--text-2)", textTransform:"uppercase", display:"block", marginBottom:6 }}>Password (Strong: min 8 char, digits & letters)</label>
-                <input required id="reg-password" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••"
-                  style={{
-                    width:"100%", padding:"10px 14px", borderRadius:10, background:"var(--bg-surface)",
-                    border: password.length >= 8 && /\d/.test(password) && /[a-zA-Z]/.test(password) ? "1px solid var(--green)" : "1px solid var(--border)",
-                    color:"#fff", outline:"none", fontSize:14
-                  }}
-                />
+                <div style={{ position: "relative" }}>
+                  <input required id="reg-password" type={showPassword ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••"
+                    style={{
+                      width:"100%", padding:"10px 48px 10px 14px", borderRadius:10, background:"var(--bg-surface)",
+                      border: password.length >= 8 && /\d/.test(password) && /[a-zA-Z]/.test(password) ? "1px solid var(--green)" : "1px solid var(--border)",
+                      color:"#fff", outline:"none", fontSize:14
+                    }}
+                  />
+                  <button type="button" onClick={() => setShowPassword(!showPassword)} style={{
+                    position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "var(--text-3)", cursor: "pointer", fontSize: 16
+                  }}>
+                    {showPassword ? "👁️" : "🙈"}
+                  </button>
+                </div>
               </div>
-              <button type="submit" style={{ width:"100%", padding:"12px", borderRadius:12, background:"var(--grad)", color:"#fff", border:"none", fontSize:14, fontWeight:700, cursor:"pointer", marginTop:8 }}>
-                Register Account
+              <button type="submit" disabled={isSubmittingAuth} style={{ width:"100%", padding:"12px", borderRadius:12, background:"var(--grad)", color:"#fff", border:"none", fontSize:14, fontWeight:700, cursor:isSubmittingAuth ? "not-allowed" : "pointer", marginTop:8, opacity:isSubmittingAuth ? 0.7 : 1 }}>
+                {isSubmittingAuth ? "Registering Account..." : "Register Account"}
               </button>
               <div style={{ textAlign:"center", fontSize:12, marginTop:10 }}>
                 <span onClick={() => { setAuthView("login"); setAuthError(""); }} style={{ color:"var(--accent)", cursor:"pointer" }}>Already have an account? Sign in</span>
@@ -2001,9 +2028,16 @@ export default function HomeGPT() {
             <form onSubmit={handleResetPassword} style={{ display:"flex", flexDirection:"column", gap:14 }}>
               <div>
                 <label htmlFor="new-password" style={{ fontSize:11, fontWeight:600, color:"var(--text-2)", textTransform:"uppercase", display:"block", marginBottom:6 }}>New Password</label>
-                <input required id="new-password" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••"
-                  style={{ width:"100%", padding:"10px 14px", borderRadius:10, background:"var(--bg-surface)", border:"1px solid var(--border)", color:"#fff", outline:"none", fontSize:14 }}
-                />
+                <div style={{ position: "relative" }}>
+                  <input required id="new-password" type={showPassword ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••"
+                    style={{ width:"100%", padding:"10px 48px 10px 14px", borderRadius:10, background:"var(--bg-surface)", border:"1px solid var(--border)", color:"#fff", outline:"none", fontSize:14 }}
+                  />
+                  <button type="button" onClick={() => setShowPassword(!showPassword)} style={{
+                    position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "var(--text-3)", cursor: "pointer", fontSize: 16
+                  }}>
+                    {showPassword ? "👁️" : "🙈"}
+                  </button>
+                </div>
               </div>
               <button type="submit" style={{ width:"100%", padding:"12px", borderRadius:12, background:"var(--grad)", color:"#fff", border:"none", fontSize:14, fontWeight:700, cursor:"pointer", marginTop:8 }}>
                 Save New Password
