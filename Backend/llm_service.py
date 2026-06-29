@@ -48,7 +48,7 @@ Answer:"""
             headers = {
                 "Authorization": f"Bearer {openrouter_api_key}",
                 "Content-Type": "application/json",
-                "HTTP-Referer": "https://researchai-app.vercel.app",
+                "HTTP-Referer": "https://ai-research-assistant-tan.vercel.app",
                 "X-Title": "ResearchAI"
             }
             payload = {
@@ -144,7 +144,7 @@ Answer:"""
             headers = {
                 "Authorization": f"Bearer {openrouter_api_key}",
                 "Content-Type": "application/json",
-                "HTTP-Referer": "https://researchai-app.vercel.app",
+                "HTTP-Referer": "https://ai-research-assistant-tan.vercel.app",
                 "X-Title": "ResearchAI"
             }
             payload = {

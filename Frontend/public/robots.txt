@@ -2,4 +2,4 @@ User-agent: *
 Allow: /
 Disallow: /api/
 Disallow: /dashboard/
-Sitemap: https://researchai-app.vercel.app/sitemap.xml
+Sitemap: https://ai-research-assistant-tan.vercel.app/sitemap.xml

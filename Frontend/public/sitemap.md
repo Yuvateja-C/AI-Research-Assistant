@@ -4,12 +4,12 @@ This is a human-readable and AI-friendly sitemap of all public-facing pages of R
 
 ## Site Structure
 
-- [Home / Workspace](https://researchai-app.vercel.app/)
+- [Home / Workspace](https://ai-research-assistant-tan.vercel.app/)
   - Landing page detailing product features, customer testimonials, and upload parameters.
   - Interactive secure document analysis workspace (access requires token authentication).
-- [Privacy Policy](https://researchai-app.vercel.app/privacy)
+- [Privacy Policy](https://ai-research-assistant-tan.vercel.app/privacy)
   - Information regarding vector retention and secure local processing.
-- [Terms of Service](https://researchai-app.vercel.app/terms)
+- [Terms of Service](https://ai-research-assistant-tan.vercel.app/terms)
   - Detailed acceptable use guidelines and RAG accuracy disclaimers.
 
 ## API Integration Targets

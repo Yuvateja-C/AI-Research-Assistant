@@ -8,7 +8,7 @@ ResearchAI is a secure, vector-powered platform designed for academic researcher
 - **Database Engine**: Uses SQLite for session management, chats logs, and message histories.
 
 ## Public Endpoint Targets
-- Main Workspace: https://researchai-app.vercel.app/
+- Main Workspace: https://ai-research-assistant-tan.vercel.app/
 - API Backend Host: https://api-research-assistant-bseo.onrender.com/
-- Privacy Policy: https://researchai-app.vercel.app/privacy
-- Terms of Service: https://researchai-app.vercel.app/terms
+- Privacy Policy: https://ai-research-assistant-tan.vercel.app/privacy
+- Terms of Service: https://ai-research-assistant-tan.vercel.app/terms

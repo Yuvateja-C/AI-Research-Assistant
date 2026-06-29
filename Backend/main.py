@@ -51,9 +51,7 @@ def startup_event():
 # CORS
 # ----------------------------
 origins = [
-    "https://researchai-app.vercel.app",
-    "https://ai-research-assistant-yuvateja-cs-projects.vercel.app",
-    "https://ai-research-assistant-gamma-six.vercel.app",
+    "https://ai-research-assistant-tan.vercel.app",
     "http://localhost:5173",
     "http://localhost:3000",
 ]
@@ -61,7 +59,7 @@ origins = [
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
-    allow_origin_regex=r"https://(ai-research-assistant-.*|researchai-app-.*|researchai-app)\.vercel\.app",
+    allow_origin_regex=r"https://ai-research-assistant-tan.vercel.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -285,7 +283,7 @@ def register(data: RegisterRequest):
     conn.close()
 
     # Send verification email
-    verify_url = f"https://researchai-app.vercel.app/verify-email?token={verification_token}"
+    verify_url = f"https://ai-research-assistant-tan.vercel.app/verify-email?token={verification_token}"
     email_html = get_email_template(
         "Welcome to ResearchAI!",
         f"Thank you for registering. Please click the button below to verify your email address and unlock your intelligent research workspace.",
@@ -364,6 +362,7 @@ def login(data: LoginRequest, response: Response):
         max_age=7 * 24 * 3600,
         samesite="lax",
         secure=True
+    )
     return {"message": "Login successful", "token": token}
 
 @app.post("/auth/logout")
@@ -491,8 +490,8 @@ def create_checkout_session(user: dict = Depends(get_current_user)):
                 },
             ],
             mode='payment',
-            success_url=f"https://researchai-app.vercel.app/?session_id={{CHECKOUT_SESSION_ID}}&status=success",
-            cancel_url="https://researchai-app.vercel.app/?status=cancel",
+            success_url=f"https://ai-research-assistant-tan.vercel.app/?session_id={{CHECKOUT_SESSION_ID}}&status=success",
+            cancel_url="https://ai-research-assistant-tan.vercel.app/?status=cancel",
             client_reference_id=user["id"]
         )
         return {"url": checkout_session.url}
@@ -655,7 +654,7 @@ def recover_password(data: RecoverRequest):
     # In a real app, send email here. For demo, we return the link.
     return {
         "message": "Recovery token generated",
-        "recovery_link": f"https://researchai-app.vercel.app/reset-password?token={token}"
+        "recovery_link": f"https://ai-research-assistant-tan.vercel.app/reset-password?token={token}"
     }
 
 @app.post("/auth/reset-password")
