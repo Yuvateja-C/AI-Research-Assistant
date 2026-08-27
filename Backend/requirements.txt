@@ -1,0 +1,17 @@
+fastapi
+uvicorn
+chromadb
+groq
+pypdf
+python-multipart
+python-dotenv
+PyMuPDF
+requests
+google-genai
+openai
+psycopg2-binary
+alembic
+sentence-transformers
+pytest
+httpx
+

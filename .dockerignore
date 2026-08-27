@@ -1,0 +1,28 @@
+.git
+.gitignore
+.vscode
+.idea
+
+# Backend virtualenv & database artifacts
+Backend/venv/
+Backend/__pycache__/
+Backend/*.pyc
+Backend/*.pyo
+Backend/*.db
+Backend/chroma_db/
+Backend/uploads/
+Backend/processed/
+Backend/chunks/
+Backend/mock_emails/
+chroma_db/
+uploads/
+
+# Frontend node_modules & production dist
+Frontend/node_modules/
+Frontend/dist/
+Frontend/.env.local
+
+# Documentation & temp files
+Docs/
+*.md
+*.log
